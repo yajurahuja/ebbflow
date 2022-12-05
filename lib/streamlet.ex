@@ -42,7 +42,7 @@ defmodule PClient do
     current_epoch_proposal: nil
   )
 
-  def new_PClient(id, client_da) do
+  def new(id, client_da) do
     %PClient{
       id: id,
       client_da: client_da,
