@@ -1,5 +1,7 @@
 defmodule PBlock do
 
+  #import useful things
+  #import MapSet #This is for the Set data structure
   #This structure contains all the process state required by PBlock
   defstruct(
    parent: nil,
@@ -16,7 +18,7 @@ defmodule PBlock do
   end
 
   def genesis() do
-    new_PBlock(nil, -1, DABlock.genesis())
+    new_PBlock(nil, -1, DABlock.genesis()) #TODO: Fix to return th global genesis block
   end
 
   def epoch(t, bft_delay) do
@@ -45,26 +47,49 @@ defmodule PClient do
     %PClient{
       id: id,
       client_da: client_da,
-      leafs: nil, #TODO: set leafs to be the genesuis block
-      votes: nil, #TODO: set votes to be a dictionary
+      leafs: MapSet.new([PBlock.genesis()]), #TODO: set leafs to be the genesuis block
+      votes: %{}, #Key => Value:  PBlock => Set{int}
       current_epochs_proposal: nil
     }
   end
 
   def isnotarized(client, block) do
     notarized =
-      if block == genesis_block do #TODO: fix genesis block
+      if block == PBlock.genesis() do #TODO: fix genesis block
         true
       else
         false
       end
-    #if length of the votes for of the client for block c are atleast n * 2 /3: return true
+    #if length of the votes for of the client for block c are atleast n * 2/3: return true
+    notarized =
+      if MapSet.size(client.votes) >= (2/3 * n) do #TODO: figure out how to pass n
+        true
+      else
+        false
+      end
     notarized
   end
 
   def lastnotarized(client, block) do
     #while the the block for a client is not notarized, we go up in the blockchain
-    block
+    lastnotarized_block =
+      if not isnotarized(client, block) do
+        lastnotarized(client, block.parent)
+      else
+        block
+      end
   end
 
+  #this function returns the tip block in the longest chain of the blockchain
+  def tip(client) do
+    best_block = PBlock.genesis()
+    best_depth = depth(best_block)
+    #for loop on all leafs of
+  end
+  def finalized_tip(client, blocks) do
+      blocks = MapSet()
+
+  end
+
+  #this funciton returns all
 end
