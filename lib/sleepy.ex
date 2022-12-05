@@ -29,19 +29,25 @@ defmodule DAClient do
   end
 
   defp confirmedtip_helper(block, k) do
-    cond do
-      k == 0 ->
+
+    if k == 0 do
+      block
+    else
+      if block == DABlock.genesis() do
         block
-      block == block == DABlock.genesis() ->
-        block
-      true ->
+      else
         block.parent
+      end
     end
+
   end
   def confirmedtip(client, k) do
     b = tip(client)
 
 
+  end
+  def ledger(client, k) do
+    Utilities.confirmedtip(client, k)
   end
 
 end

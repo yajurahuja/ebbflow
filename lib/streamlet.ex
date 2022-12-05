@@ -86,10 +86,60 @@ defmodule PClient do
     best_depth = depth(best_block)
     #for loop on all leafs of
   end
+
+  def tip_helper(block, )
   def finalized_tip(client, blocks) do
       blocks = MapSet()
 
   end
 
-  #this funciton returns all
+  #this funciton returns all blocks
+  defp allblocks_helper(leafs) do
+    if length(leafs) == 0 do
+      MapSet.new()
+    else
+      head = hd(leafs)
+      tail = tl(leafs)
+      Mapset.union(MapSet.new(Utilities.chain(head)), allblocks_helper(tail))
+    end
+  end
+
+  def allblocks(client) do
+    blocks = MapSet.new()
+    leafs = MapSet.to_list(client.leafs)
+    allblocks_helper(leafs)
+  end
+end
+
+
+defmodule PMsgProposal do
+  defstruct(
+    t: nil,
+    id: nil,
+    block: nil
+  )
+
+  def new(t, id, block) do
+    %{
+      t: t,
+      id: id,
+      block: block
+    }
+  end
+end
+
+defmodule PMsgVote do
+  defstruct(
+    t: nil,
+    id: nil,
+    block: nil
+  )
+
+  def new(t, id, block) do
+    %{
+      t: t,
+      id: id,
+      block: block
+    }
+  end
 end
