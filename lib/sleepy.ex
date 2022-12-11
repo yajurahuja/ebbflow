@@ -52,7 +52,7 @@ defmodule DAClient do
   end
 
   def ledger(client, k) do
-    Utilities.confirmedtip(client, k)
+    Utilities.ledger(confirmedtip(client, k))
   end
 
   # TODO: allblocks, DAMsgNewBlock and slot! pending to be implemented
