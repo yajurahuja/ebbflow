@@ -17,7 +17,12 @@ defmodule HonestValidator do
   end
 
   def slot(validator, t, msgs_out, msgs_in) do
-    #TODO: message passing functions and slotting
+    PClient.slot
+
+#     function slot!(v :: HonestValidator, t, msgs_out, msgs_in)
+#       slot!(v.client_da, t, msgs_out, msgs_in)
+#       slot!(v.client_p, t, msgs_out, msgs_in)
+#     end
   end
 
   def sanitize(lst) do

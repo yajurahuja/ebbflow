@@ -32,7 +32,7 @@ defmodule DAClient do
 
   def tip(client) do
     leafs = Enum.sort_by(MapSet.to_list(client.leafs),
-    &{Utilities.depth(&1), String.starts_with?(&1.payload, "adversarial")}, :desc)
+      &{Utilities.depth(&1), String.starts_with?(&1.payload, "adversarial")}, :desc)
     hd(leafs)
   end
 
