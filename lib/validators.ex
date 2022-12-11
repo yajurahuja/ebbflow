@@ -11,8 +11,8 @@ defmodule HonestValidator do
     client_p = PClient.new(id, client_da)
     %HonestValidator{
       id: id,
-      client_da = client_dat
-      client_p = client_p
+      client_da: client_da,
+      client_p: client_p
     }
   end
 
@@ -20,7 +20,7 @@ defmodule HonestValidator do
     #TODO: message passing functions and slotting
   end
 
-  def sanitize(lst)
+  def sanitize(lst) do
     out = []
     #TODO: remove duplicates
     #does the sanitation happen in order
@@ -45,8 +45,8 @@ defmodule AdversarialValidator do
 
   def new(id) do
     client_da = DAClient.new(id)
-    %AsvesarialValidator{
-      id: id
+    %AdversarialValidator{
+      id: id,
       client_da: client_da
     }
   end

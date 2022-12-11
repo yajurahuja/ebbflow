@@ -25,7 +25,7 @@ defmodule DAClient do
 
   def tip(client) do
     #leafs = Enum.sort(, fn x -> )
-    leafs[0]
+    client.leafs[0]
   end
 
   defp confirmedtip_helper(block, k) do

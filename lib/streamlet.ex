@@ -24,7 +24,7 @@ defmodule PBlock do
     t / (2 * bft_delay)
   end
 
-  def leader(t, n) do
+  def leader(t, n, bft_delay) do
     e = epoch(t, bft_delay)
     #TODO: fix seeding according to TSE group, check if required
     l = Enum.random(1..n)
@@ -35,10 +35,10 @@ end
 defmodule PClient do
   #This structure contains all the process state required by the PClient
   defstruct(
-    id: nil
-    client_da: nil
-    leafs: nil
-    votes: nil
+    id: nil,
+    client_da: nil,
+    leafs: nil,
+    votes: nil,
     current_epoch_proposal: nil
   )
 
@@ -48,7 +48,7 @@ defmodule PClient do
       client_da: client_da,
       leafs: MapSet.new([PBlock.genesis()]),
       votes: %{}, #Key => Value:  PBlock => Set{int}
-      current_epochs_proposal: nil
+      current_epoch_proposal: nil
     }
   end
 
@@ -70,11 +70,11 @@ defmodule PClient do
     notarized
   end
 
-  def lastnotarized(client, block) do
+  def lastnotarized(client, block, n) do
     #while the the block for a client is not notarized, we go up in the blockchain
     lastnotarized_block =
-      if not isnotarized(client, block) do
-        lastnotarized(client, block.parent)
+      if not isnotarized(client, block, n) do
+        lastnotarized(client, block.parent, n)
       else
         block
       end
@@ -82,12 +82,12 @@ defmodule PClient do
   end
 
   #this is a helper function for the tip function
-  defp tip_helper(client, leafs, best_block, best_depth) do
+  defp tip_helper(client, leafs, best_block, best_depth, n) do
     if length(leafs) == 0 do
       {best_block, best_depth}
     else
       head = hd(leafs)
-      l = lastnotarized(client, head)
+      l = lastnotarized(client, head, n)
       tail = tl(leafs)
       {best_block, best_depth} =
       if Utilities.depth(l) > best_depth do
@@ -97,21 +97,21 @@ defmodule PClient do
       else
         {best_block, best_depth}
       end
-      tip_helper(client, tail, best_block, best_depth)
+      tip_helper(client, tail, best_block, best_depth, n)
     end
   end
 
   #this function returns the tip block in the longest chain of the blockchain
-  def tip(client) do
+  def tip(client, n) do
     best_block = PBlock.genesis()
     best_depth = Utilities.depth(best_block)
     leafs = MapSet.to_list(client.leafs)
     #travese through all leafs and find the one with the maximum depth
-    {best_block, best_depth} = tip_helper(client, leafs, best_block, best_depth)
+    {best_block, best_depth} = tip_helper(client, leafs, best_block, best_depth, n)
     best_block
   end
 
-  def finalizedtip_helperwhile(client, leaf, best_block, best_depth) do
+  def finalizedtip_helperwhile(client, leaf, best_block, best_depth, n) do
     if Utilities.depth(leaf) <= 3 or Utilities.depth(leaf) <= best_depth do
       {best_block, best_depth}
     else
@@ -119,44 +119,46 @@ defmodule PClient do
       b1 = leaf.parent
       b2 = leaf
       {best_block, best_depth} =
-        if isnotarized(client, b0) and isnotarized(client, b1) and isnotarized(client, b2) and (b0.epoch == b2.epoch - 2) and (b1.epoch == b2.epoch - 1) and Utilities.depth(b1) > best_depth do
+        if isnotarized(client, b0, n) and
+        isnotarized(client, b1, n) and
+        isnotarized(client, b2, n) and (b0.epoch == b2.epoch - 2) and (b1.epoch == b2.epoch - 1) and Utilities.depth(b1) > best_depth do
           best_block = b1
           best_depth = Utilities.depth(best_block)
           {best_block, best_depth}
         else
-          finalizedtip_helperwhile(client, leaf.parent, best_block, best_depth)
+          finalizedtip_helperwhile(client, leaf.parent, best_block, best_depth, n)
         end
       {best_block, best_depth}
     end
   end
   #this is a helper function to the finalized tip function
-  def finalizedtip_helper(client, leafs, best_block, best_depth) do
-    if len(leafs) == 0 do
+  def finalizedtip_helper(client, leafs, best_block, best_depth, n) do
+    if length(MapSet.to_list(leafs)) == 0 do
       {best_block, best_depth}
     else
       head = hd(leafs)
       tail = tl(leafs)
-      {best_block, best_depth} = finalizedtip_helperwhile(client, head, best_block, best_depth)
-      finalizedtip_helper(client, tail, best_block, best_depth)
+      {best_block, best_depth} = finalizedtip_helperwhile(client, head, best_block, best_depth, n)
+      finalizedtip_helper(client, tail, best_block, best_depth, n)
     end
   end
 
  #this function returns the finlized tip block in the longest chain of the blockchain
-  def finalizedtip(client) do
+  def finalizedtip(client, n) do
       best_block = PBlock.genesis()
       best_depth = Utilities.depth(best_block)
       leafs = MapSet.to_list(client.leafs)
-      leafs = Enum.sort(leafs, fn x -> Utilities.depth(x))
+      leafs = Enum.sort(leafs, fn x -> Utilities.depth(x) end)
       leafs = Enum.reverse(leafs)
       #travese through all leafs
-      {best_block, best_depth} = finalizedtip_helper(client, leafs, best_block, best_depth)
+      {best_block, best_depth} = finalizedtip_helper(client, leafs, best_block, best_depth, n)
       best_block
   end
 
 
   #This function returns the ledger
-  def ledger(client) do
-    Utilities.ledger(finalizedtip(client))
+  def ledger(client, n) do
+    Utilities.ledger(finalizedtip(client, n))
   end
 
   #this function is a helper function for the allblocks function
