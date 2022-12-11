@@ -5,7 +5,7 @@ defmodule Utilities do
     if block.parent == nil do
       0
     else
-      1 + depth(block)
+      1 + depth(block.parent)
     end
   end
 

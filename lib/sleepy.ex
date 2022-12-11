@@ -4,7 +4,7 @@ defmodule DABlock do
     payload: nil
   )
 
-  def new_DABlock(parent, payload) do
+  def new(parent, payload) do
     %DABlock{
       parent: parent,
       payload: payload
@@ -12,7 +12,7 @@ defmodule DABlock do
   end
 
   def genesis() do
-    new_DABlock(nil, "da-genesis")
+    new(nil, "da-genesis")
   end
 end
 
@@ -20,34 +20,40 @@ defmodule DAClient do
   defstruct(
     id: nil,
     leafs: MapSet.new([DABlock.genesis()]),
-    rng_mining: nil #What is this? Maybe random number generator
+    rng_mining: nil
   )
 
+  def new(id) do
+    %DAClient{
+      id: id,
+      rng_mining: MersenneTwister.init(2342 + id)
+    }
+  end
+
   def tip(client) do
-    #leafs = Enum.sort(, fn x -> )
-    client.leafs[0]
+    leafs = Enum.sort_by(MapSet.to_list(client.leafs),
+    &{Utilities.depth(&1), String.starts_with?(&1.payload, "adversarial")}, :desc)
+    hd(leafs)
   end
 
   defp confirmedtip_helper(block, k) do
-
-    if k == 0 do
-      block
-    else
-      if block == DABlock.genesis() do
+    cond do
+      k == 0 or block == DABlock.genesis() ->
         block
-      else
-        block.parent
-      end
+      true ->
+        block = block.parent
+        confirmedtip_helper(block, k-1)
     end
-
   end
+
   def confirmedtip(client, k) do
     b = tip(client)
-
-
+    confirmedtip_helper(b, k)
   end
+
   def ledger(client, k) do
     Utilities.confirmedtip(client, k)
   end
 
+  # TODO: allblocks, DAMsgNewBlock and slot! pending to be implemented
 end
