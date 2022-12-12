@@ -2,6 +2,7 @@ defmodule SleepyTest do
   use ExUnit.Case
   doctest DABlock
   doctest DAClient
+  doctest DAMsgNewBlock
 
   test "DABlock genesis" do
     assert DABlock.genesis().payload == "da-genesis"
@@ -50,5 +51,32 @@ defmodule SleepyTest do
   test "confirmed tip - k = 3" do
     ctip = DAClient.confirmedtip(dummy_client(), 3)
     assert ctip.payload == "block1"
+  end
+
+  test "allblocks" do
+    allblocks = DAClient.allblocks(dummy_client())
+    assert length(MapSet.to_list(allblocks)) == 6
+  end
+
+  test "slot! - genesis client" do
+    client = DAClient.new(2)
+    slot = MapSet.to_list(DAMsgNewBlock.slot!(
+      client, 2, MapSet.new(), MapSet.new(), :honest, 0.7))
+    assert length(slot) == 1
+    assert hd(slot).id == 2
+    assert hd(slot).t == 2
+    assert hd(slot).block.payload == "t=2,id=2"
+
+  end
+
+  test "slot! - dummy client" do
+    client = dummy_client()
+    slot = MapSet.to_list(DAMsgNewBlock.slot!(
+      client, 2, MapSet.new(), MapSet.new(), :honest, 0.7))
+    assert length(slot) == 1
+    assert hd(slot).id == 2
+    assert hd(slot).t == 2
+    assert hd(slot).block.payload == "t=2,id=2"
+
   end
 end

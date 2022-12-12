@@ -52,8 +52,59 @@ defmodule DAClient do
   end
 
   def ledger(client, k) do
-    Utilities.ledger(confirmedtip(client, k))
+    confirmedtip(client, k)
   end
 
-  # TODO: allblocks, DAMsgNewBlock and slot! pending to be implemented
+  def allblocks(client) do
+    MapSet.to_list(client.leafs)
+    |> Enum.map(fn l -> Utilities.chain(l) end)
+    |> List.flatten()
+    |> MapSet.new()
+  end
+
+end
+
+defmodule DAMsgNewBlock do
+  defstruct(
+    t: 0,
+    id: 0,
+    block: nil
+  )
+
+  def new(t, id, block) do
+    %DAMsgNewBlock{t: t, id: id, block: block}
+  end
+
+  defp daMsgNewBlock?(%DAMsgNewBlock{}) do
+    true
+  end
+
+  defp daMsgNewBlock?(_) do
+    false
+  end
+
+  def slot!(client, t, msgs_out, msgs_in, role \\ :honest, prob_pos_mining_success_per_slot) do
+    daMsgs = Enum.filter(msgs_in, fn x -> daMsgNewBlock?(x) end)
+    diff = daMsgs
+    |> Enum.map(fn x -> x.block.parent end)
+    |> MapSet.new()
+
+    additions = daMsgs
+    |> Enum.map(fn x -> x.block end)
+    |> MapSet.new()
+
+    client = %{client | leafs: MapSet.difference(client.leafs, diff)}
+    client = %{client | leafs: MapSet.union(client.leafs, additions)}
+
+    if elem(MersenneTwister.nextUniform(client.rng_mining), 0) <= prob_pos_mining_success_per_slot do
+      if role == :honest do
+        new_dablock = DABlock.new(DAClient.tip(client), "t=#{t},id=#{client.id}")
+        MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
+      else
+        new_dablock = DABlock.new(DAClient.tip(client), "adversarial:t=#{t},id=#{client.id}")
+        MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
+      end
+    end
+  end
+
 end
