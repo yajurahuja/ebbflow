@@ -89,6 +89,10 @@ defmodule OverviewSimulation do
 		%{config | asleepValidators: config.asleepValidators ++ [val]}
 	end
 
+	def pushLivenessPhase(config, val) do
+		%{config | livenessPhase: config.livenessPhase ++ [val]}
+	end
+
 	@spec daTick(%OverviewSimulation) :: %OverviewSimulation
 	def daTick(config) do
 		:rand.seed(config.rngDa)
@@ -106,8 +110,56 @@ defmodule OverviewSimulation do
 		end
 	end
 
-	def runSimulation(config, time) do
+	def honestMsgManage(config, validators, msgsOutPart1, msgsOutPart2) do
+		case validators do
+			[] -> {config, msgsOutPart1, msgsOutPart2}
+			[validator | tail] ->
+				msgsIn = Map.get(config.msgsInAll)
+				config = 
+					if Utilities.checkMembership(config.awakeValidators, validator) do
+						msgsOut = 
+							if Utilities.checkMembership(config.validatorsPart1, validator) do
+								msgsOutPart1
+							else
+								msgsOutPart2
+							end
+						HonestValidator.slot(validator, t, msgs_out, config.msgsMissed[validator] ++ msgsIn)
+						%{config | msgsMissed: Map.drop(config.msgsMissed, validator)}
+					else
+						%{config | msgsMissed: Map.replace(config.msgsMissed, validator, config.msgsMissed[validator] ++ msgsIn)}
+					end
+				honestMsgManage(config, tail, msgsOutPart1, msgsOutPart2)
+		end
+	end
+
+	def runSimulation(config, t) do
 		config = daTick(config)
+
+		config = 
+			if rem(t, 15*config.second) == 0 do
+				case config.livenessPhaseStart do
+					nil -> 
+						if List.length(config.awakeValidators) >= 67 do
+							%{config | livenessPhaseStart = t}
+						else
+							config
+						end
+					_ -> 
+						if List.length(config.awakeValidators) < 67 or t == config.tEnd do
+							config = pushLivenessPhase(config, {config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
+							%{config | livenessPhaseStart = nil}
+						else
+							config
+						end
+				end
+			else
+				config
+			end
+
+		msgsInAll = Map.get(config.msgsInflight, t, Map.new())
+
+		{config, msgsOutPart1, msgsOutPart2} = honestMsgManage(config, config.awakeValidators, [], [])
+
 	end
 
 
