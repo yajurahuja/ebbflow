@@ -8,7 +8,7 @@ defmodule PBlock do
    payload: nil
   )
 
-  def new_PBlock(parent, epoch, payload) do
+  def new(parent, epoch, payload) do
     %PBlock{
       parent: parent,
       epoch: epoch,
@@ -178,6 +178,78 @@ defmodule PClient do
     leafs = MapSet.to_list(client.leafs)
     allblocks_helper(leafs)
   end
+
+
+  #slot helper function
+  def slot_helper(client, t, msg_in, bft_delay) do
+    if length(msg_in) == 0 do
+      client
+    else
+      msg = hd(msg_in)
+      client =
+      if msg == %PMsgProposal{} do
+        #update leafs
+        updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
+        updated_leafs = MapSet.put(updated_leafs, msg.block)
+        client = {client | leafs: updated_leafs}
+        client.votes[m.block] = MapSet.new()
+        #update current_epoch_proposal
+        client =
+          if msg.block.epoch ==  PBlock.epoch(t, bft_delay) and client.current_proposal == nil do
+            client.current_proposal = m.block
+            client
+          else
+            client
+          end
+        slot_helper(client, t, tl(msgs_in), bft_delay)
+      else
+        slot_helper(client, t, tl(msgs_in), bft_delay)
+      end
+    end
+  end
+
+  def slot_vote_helper(client, msgs_in) do
+    if len(msgs_in) == 0 do
+      client
+    else
+      msg = hd(msgs_in)
+      if msg == %PMsgVote{} do
+        updated_votes = Map.put(client.votes, msg.block, msg.id)
+        client = {client | votes: updated_votes}
+        slot_vote_helper(client, tl(msgs_in))
+      else
+        slot_vote_helper(client, tl(msgs_in))
+      end
+    end
+  end
+
+  def slot(client, t, msgs_out, msgs_in, bft_delay, n) do
+    #update proposal
+    client = slot_helper(client, t, msgs_in)
+    #update votes
+    client = slot_vote_helper(client, msgs_in)
+    {client, msgs_out} =
+    if t % (2 * bft_delay) == 0 do
+      client = {client | current_epoch_proposal: nil}
+      msgs_out =
+      if leader(t, n, bft_delay) == client.id do
+        new_pblock = PBlock.new(tip(client), epoch(t), confirmed_tip(client.client_da))
+        msgs_out ++ [PMsgProposal.new(t, client.id, new_pblock)]
+      else
+        msgs_out
+      end
+      {client, msgs_out}
+    else
+      msgs_out =
+      if  t % (2 * bft_delay) == bft_delay and client.current_epoch_proposal != 0 do
+        msgs_out ++ [PMsgVote.new(t, client.id, client.current_epoch_proposal)]
+      else
+        msgs_out
+      end
+      {client, msgs_out}
+    end
+    {client, msgs_out}
+end
 end
 
 #TODO: interface for message passing
