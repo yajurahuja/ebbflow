@@ -1,7 +1,7 @@
 defmodule Utilities do
 
   #the following function returns the depth of the block in the block chain
-  @spec depth(%PBlock{} | %DABlock) :: non_neg_integer()
+  @spec depth(%PBlock{} | %DABlock{}) :: non_neg_integer()
   def depth(block) do
     if block.parent == nil do
       0
@@ -12,7 +12,7 @@ defmodule Utilities do
 
   #the following function returns the chain ending at the block input
   #chain is a sequence of blocks starting with the genesis block chain[0] with strictly increasing epoch numbers.
-  @spec chain(%PBlock{} | %DABlock) :: list(%PBlock{})|list(%DABlock{})
+  @spec chain(%PBlock{} | %DABlock{}) :: list(%PBlock{})|list(%DABlock{})
   def chain(block) do
     if block.parent == nil do
       [block]
@@ -22,7 +22,7 @@ defmodule Utilities do
   end
 
  #the following function returns the ledger from the block list
- @spec ledger(%PBlock{} | %DABlock) :: list(string())
+ @spec ledger(%PBlock{} | %DABlock{}) :: list(string())
   def ledger(block) do
     if block.parent == nil do
       [block.payload]
