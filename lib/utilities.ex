@@ -21,8 +21,8 @@ defmodule Utilities do
     end
   end
 
- #the following function returns the ledger from the block list
- @spec ledger(%PBlock{} | %DABlock{}) :: list(string())
+  #the following function returns the ledger from the block list
+  @spec ledger(%PBlock{} | %DABlock{}) :: list(string())
   def ledger(block) do
     if block.parent == nil do
       [block.payload]
@@ -33,10 +33,10 @@ defmodule Utilities do
 
   # Returns true if val is in list
   @spec checkMembership(any(), list(any())) :: boolean()
-  defp checkMembership(val, list) do
+  def checkMembership(val, list) do
     case list do
       [] -> false
-      [head | tail] -> 
+      [head | tail] ->
         if val == head do
           true
         else
