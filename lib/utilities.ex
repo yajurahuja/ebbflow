@@ -31,4 +31,18 @@ defmodule Utilities do
     end
   end
 
+  # Returns true if val is in list
+  @spec checkMembership(any(), list(any())) :: boolean()
+  defp checkMembership(val, list) do
+    case list do
+      [] -> false
+      [head | tail] -> 
+        if val == head do
+          true
+        else
+          checkMembership(val, tail)
+        end
+    end
+  end
+
 end
