@@ -29,8 +29,8 @@ defmodule DPSimulation do
 		validatorsHonest: nil,
 		validatorsAdversarial: nil,
 
-		awakeValidators: nil,
-		asleepValidators: nil,
+		validatorsAwake: nil,
+		validatorsAsleep: nil,
 
 		part1Validators: nil,
 		part2Validators: nil,
@@ -43,10 +43,10 @@ defmodule DPSimulation do
 
 	]
 
-	@spec newConfiguration() :: %DPSimulation{}
+	@spec newConfiguration(non_negative_integer(), non_negative_integer()) :: %DPSimulation{}
 	def newConfiguration(n, f) do
-		validators = for id <- 1..n, do (if id<= (n-f) do %HonestValidator(id) else %AdversarialValidator(id) end)
-		%OverviewSimulation{
+		validators = for id <- 1..n, do (if id <= (n-f) do %HonestValidator(id) else %AdversarialValidator(id) end)
+		%%DPSimulation{
 			validators: validators,
 
 			validatorsHonest: Enum.slice(validators, 0, n-f),
@@ -66,27 +66,27 @@ defmodule DPSimulation do
 	end
 
 	def shuffleAwake(config) do
-		%{config | awakeValidators: enum.shuffle(config.awakeValidators)}
+		%{config | validatorsAwake: enum.shuffle(config.validatorsAwake)}
 	end
 
 	def shuffleAsleep(config) do
-		%{config | asleepValidators: enum.shuffle(config.asleepValidators)}
+		%{config | validatorsAsleep: enum.shuffle(config.validatorsAsleep)}
 	end
 
 	def popAwake(config) do
-		%{config | awakeValidators: List.tail(config.awakeValidators)}
+		%{config | validatorsAwake: List.tail(config.validatorsAwake)}
 	end
 
 	def popAsleep(config) do
-		%{config | asleepValidators: List.tail(config.asleepValidators)}
+		%{config | validatorsAsleep: List.tail(config.validatorsAsleep)}
 	end
 
 	def pushAwake(config, val) do
-		%{config | awakeValidators: config.awakeValidators ++ [val]}
+		%{config | validatorsAwake: config.validatorsAwake ++ [val]}
 	end
 
 	def pushAsleep(config, val) do
-		%{config | asleepValidators: config.asleepValidators ++ [val]}
+		%{config | validatorsAsleep: config.validatorsAsleep ++ [val]}
 	end
 
 	def pushLivenessPhase(config, val) do
@@ -104,61 +104,47 @@ defmodule DPSimulation do
 			end
 
 		cond do
-			dir == :toawake -> popAsleep(pushAwake(config, head(config.asleepValidators)))
-			dir == :toasleep -> popAwake(pushAsleep(config, head(config.awakeValidators)))
+			dir == :toawake -> popAsleep(pushAwake(config, head(config.validatorsAsleep)))
+			dir == :toasleep -> popAwake(pushAsleep(config, head(config.validatorsAwake)))
 			_ -> config
 		end
 	end
 
-	def honestMsgManage(config, validators, msgsOutPart1, msgsOutPart2) do
-		case validators do
-			[] -> {config, msgsOutPart1, msgsOutPart2}
-			[validator | tail] ->
-				msgsIn = Map.get(config.msgsInAll)
-				config =
-					if Utilities.checkMembership(config.awakeValidators, validator) do
-						msgsOut =
-							if Utilities.checkMembership(config.validatorsPart1, validator) do
-								msgsOutPart1
-							else
-								msgsOutPart2
-							end
-						HonestValidator.slot(validator, t, msgs_out, config.msgsMissed[validator] ++ msgsIn)
-						%{config | msgsMissed: Map.drop(config.msgsMissed, validator)}
-					else
-						%{config | msgsMissed: Map.replace(config.msgsMissed, validator, config.msgsMissed[validator] ++ msgsIn)}
-					end
-				honestMsgManage(config, tail, msgsOutPart1, msgsOutPart2)
-		end
-	end
+
+  def missed_messages(config, validators) do
+    if length(validators) == 0 do
+      config
+    else
+      v = hd(validators)
+      if Utilities.checkMembership(v, config.validatorsAwake) do
+        {_, _, msgs_out} =
+        cond do
+
+        end
+      end
+    end
+  end
+
 
 	def runSimulation(config, t) do
 		config = daTick(config)
 
-		config =
-			if rem(t, 15*config.second) == 0 do
-				case config.livenessPhaseStart do
-					nil ->
-						if List.length(config.awakeValidators) >= 67 do
-							%{config | livenessPhaseStart = t}
-						else
-							config
-						end
-					_ ->
-						if List.length(config.awakeValidators) < 67 or t == config.tEnd do
-							config = pushLivenessPhase(config, {config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
-							%{config | livenessPhaseStart = nil}
-						else
-							config
-						end
-				end
-			else
-				config
-			end
+    #prepare message queues
 
-		msgsInAll = Map.get(config.msgsInflight, t, Map.new())
+    config = %{config | msgsInflight: Map.put(config.msgsInflight, t + config.delta, [])}
+    msgs_out = Map.get(config.msgsInflight, t + config.delta, [])
+    msgs_in = Map.get(config.msgsInflight, t, [])
 
-		{config, msgsOutPart1, msgsOutPart2} = honestMsgManage(config, config.awakeValidators, [], [])
+    #TODO: compute awake validator actions for this slot & collect messages missed by asleep validators
+    {l_LP, l_LDA} =
+    if rem(t, 15) == 0 do
+      l_LP = Enum.min(Enum.map(validatorsAwake, fn x -> length(HonestValidator.lp(x)) - 1 end))
+      l_LDA = Enum.min(Enum.map(validatorsAwake, fn x -> length(HonestValidator.lda(x)) - 1 end))
+      #TODO: print the l_LP, l_LDA
+      {l_LP, l_LDA}
+    else
+      {nil, nil}
+    end
 
 	end
 
