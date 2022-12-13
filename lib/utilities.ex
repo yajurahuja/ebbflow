@@ -22,7 +22,7 @@ defmodule Utilities do
   end
 
   #the following function returns the ledger from the block list
-  @spec ledger(%PBlock{} | %DABlock{}) :: list(string())
+  @spec ledger(%PBlock{} | %DABlock{}) :: list(String.t())
   def ledger(block) do
     if block.parent == nil do
       [block.payload]

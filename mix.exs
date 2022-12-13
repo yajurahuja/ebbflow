@@ -7,13 +7,15 @@ defmodule Ebbflow.MixProject do
       version: "0.1.0",
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      elixirc_paths: ["lib_prod/"]
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {Main, []},
       extra_applications: [:logger]
     ]
   end
