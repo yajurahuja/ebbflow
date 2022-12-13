@@ -4,6 +4,7 @@ defmodule DABlock do
     payload: nil
   )
 
+  @spec new(%DABlock{} | nil, list(string())) ::%DABlock{}
   def new(parent, payload) do
     %DABlock{
       parent: parent,
@@ -11,6 +12,7 @@ defmodule DABlock do
     }
   end
 
+  @spec genesis() :: %DABlock{}
   def genesis() do
     new(nil, "da-genesis")
   end
@@ -23,6 +25,7 @@ defmodule DAClient do
     rng_mining: nil
   )
 
+  @spec new(non_negative_integer()) :: %DAClient{}
   def new(id) do
     %DAClient{
       id: id,
@@ -30,12 +33,14 @@ defmodule DAClient do
     }
   end
 
+  @spec tip(%DAClient{}) :: %DABlock{}
   def tip(client) do
     leafs = Enum.sort_by(MapSet.to_list(client.leafs),
       &{Utilities.depth(&1), String.starts_with?(&1.payload, "adversarial")}, :desc)
     hd(leafs)
   end
 
+  @spec confirmedtinp_helper(%DABlock{}, non_negative_integer()) ::
   defp confirmedtip_helper(block, k) do
     cond do
       k == 0 or block == DABlock.genesis() ->
@@ -46,15 +51,19 @@ defmodule DAClient do
     end
   end
 
+  @spec confirmedtip(%DABlock{}, non_negative_integer()) :: %DABlock{}
   def confirmedtip(client, k) do
     b = tip(client)
     confirmedtip_helper(b, k)
   end
 
+
+  @spec ledger(%DAClient{}, non_negative_integer()) :: list(string())
   def ledger(client, k) do
-    confirmedtip(client, k)
+    Utilities.ledger(confirmedtip(client, k))
   end
 
+  @spec allblocks(%DABlock{}) :: %MapSet{}
   def allblocks(client) do
     MapSet.to_list(client.leafs)
     |> Enum.map(fn l -> Utilities.chain(l) end)
@@ -71,18 +80,22 @@ defmodule DAMsgNewBlock do
     block: nil
   )
 
+  @spec new(non_negative_integer(), non_negative_integer(), %DABlock{}) :: %DAMsgNewBlock{}
   def new(t, id, block) do
     %DAMsgNewBlock{t: t, id: id, block: block}
   end
 
+  @spec daMsgNewBlock?(%DAMsgNewBlock{}) :: boolean()
   defp daMsgNewBlock?(%DAMsgNewBlock{}) do
     true
   end
 
+  @spec daMsgNewBlock?() :: boolean()
   defp daMsgNewBlock?(_) do
     false
   end
 
+  @spec slot!(%DABlock{}, non_negative_integer(), list(), list(), any(), any()) :: {client_da, msgs_out}
   def slot!(client, t, msgs_out, msgs_in, role \\ :honest, prob_pos_mining_success_per_slot) do
     daMsgs = Enum.filter(msgs_in, fn x -> daMsgNewBlock?(x) end)
     diff = daMsgs
