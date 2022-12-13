@@ -48,8 +48,8 @@ defmodule OverviewSimulation do
 
 	]
 
-	@spec newConfiguration() :: %OverviewSimulation{}
-	def newConfiguration(n, f) do 
+	@spec new() :: %OverviewSimulation{}
+	def new(n, f) do 
 		validators = for id <- 1..n, 
 			do (if id<= (n-f) do %HonestValidator(id) else %AdversarialValidator(id) end)
 		genesisDA = DABlock.genesis()
