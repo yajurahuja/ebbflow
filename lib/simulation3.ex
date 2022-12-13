@@ -55,8 +55,8 @@ defmodule DPSimulation do
 			validatorsAwake: validators,
 			validatorsAsleep: [],
 
-			validatorsPart1: Enum.slice(validators, 0, (n-f)/2),
-			validatorsPart2: Enum.slice(validators, (n-f)/2, (n-f)-(n-f)/2),
+			validatorsPart1: Enum.slice(validators, 0, (n-f)*4/5),
+			validatorsPart2: Enum.slice(validators, (n-f)*4/5, (n-f)/5),
 
 			msgsInflight: Map.new(),
 			msgsMissed: Map.new(for v <- validators, {v, []}),
