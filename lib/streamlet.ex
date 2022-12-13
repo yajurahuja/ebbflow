@@ -8,6 +8,7 @@ defmodule PBlock do
    payload: nil
   )
 
+  @spec new(%PBlock{} | nil, non_negative_integer(), %DABlock{}) :: %PBlock{}
   def new(parent, epoch, payload) do
     %PBlock{
       parent: parent,
@@ -16,17 +17,21 @@ defmodule PBlock do
     }
   end
 
+  @spec genesis() :: %PBlock{}
   def genesis() do
-    new_PBlock(nil, -1, DABlock.genesis()) #TODO: Fix to return th global genesis block
+    new(nil, -1, DABlock.genesis()) #TODO: Fix to return th global genesis block
   end
 
+  @spec epoch(non_negative_integer(), non_negative_integer()) :: number()
   def epoch(t, bft_delay) do
     t / (2 * bft_delay)
   end
 
-  def leader(t, n, bft_delay) do
+  @spec leader(non_negative_integer(), non_negative_integer(), non_negative_integer()) :: non_negative_integer()
+  def leader(t, n, bft_delay, seed_val) do
     e = epoch(t, bft_delay)
     #TODO: fix seeding according to TSE group, check if required
+    :rand.seed(seed_val)
     l = Enum.random(1..n)
   end
 
@@ -42,46 +47,40 @@ defmodule PClient do
     current_epoch_proposal: nil
   )
 
+  @spec new(non_negative_intger(), %DAClient{}) :: %PClient{}
   def new(id, client_da) do
     %PClient{
       id: id,
       client_da: client_da,
-      leafs: MapSet.new([PBlock.genesis()]),
+      leafs: MapSet.new([PBlock.genesis()]), #TODO: fix this after fixing genesis_block
       votes: %{}, #Key => Value:  PBlock => Set{int}
       current_epoch_proposal: nil
     }
   end
 
+  @spec isnotarized(%PClient{}, %PBlock{}, non_negative_integer()) :: boolean()
   def isnotarized(client, block, n) do
-    #if the current block is the genesis block: return true
-    notarized =
-      if block == PBlock.genesis() do #TODO: fix genesis block
-        true
-      else
-        false
-      end
-    #if length of the votes for of the client for block c are atleast n * 2/3: return true
-    notarized =
-      if MapSet.size(client.votes) >= (2/3 * n) do #TODO: figure out how to pass n
-        true
-      else
-        false
-      end
-    notarized
+    cond do
+      #if the current block is the genesis block: return true
+      block == PBlock.genesis() -> true
+      #if length of the votes for of the client for block c are atleast n * 2/3: return true
+      MapSet.size(client.votes) >= ((n * 2) / 3) -> true
+      _ -> false
+    end
   end
 
+  @spec lastnotarized(%PClient{}, %PBlock{}, non_negative_integer()) :: %PBlock{}
   def lastnotarized(client, block, n) do
     #while the the block for a client is not notarized, we go up in the blockchain
-    lastnotarized_block =
-      if not isnotarized(client, block, n) do
-        lastnotarized(client, block.parent, n)
-      else
-        block
-      end
-    lastnotarized_block
+    if isnotarized(client, block, n) do
+      block
+    else
+      lastnotarized(client, block.parent, n)
+    end
   end
 
   #this is a helper function for the tip function
+  @spec tip_helper(%PClient{}, list(), %PBlock{}, non_negative_integer(), non_negative_integer()) :: {%PBlock{}, non_negative_integer()}
   defp tip_helper(client, leafs, best_block, best_depth, n) do
     if length(leafs) == 0 do
       {best_block, best_depth}
@@ -102,8 +101,9 @@ defmodule PClient do
   end
 
   #this function returns the tip block in the longest chain of the blockchain
+  @spec tip(%PClient{}, non_negative_integer()) :: %PBlock{}
   def tip(client, n) do
-    best_block = PBlock.genesis()
+    best_block = PBlock.genesis() #TODO: fix the genesis block
     best_depth = Utilities.depth(best_block)
     leafs = MapSet.to_list(client.leafs)
     #travese through all leafs and find the one with the maximum depth
@@ -111,6 +111,7 @@ defmodule PClient do
     best_block
   end
 
+  @spec finalizedtip_helperwhile(%PClient{}, list(), %PBlock{}, non_negative_integer(), non_negative_integer()) :: {%PBlock{}, non_negative_integer()}
   def finalizedtip_helperwhile(client, leaf, best_block, best_depth, n) do
     if Utilities.depth(leaf) <= 3 or Utilities.depth(leaf) <= best_depth do
       {best_block, best_depth}
@@ -132,6 +133,7 @@ defmodule PClient do
     end
   end
   #this is a helper function to the finalized tip function
+  @spec finalizedtip_helper(%PClient{}, list(), %PBlock{}, non_negative_integer(), non_negative_integer()) :: {%PBlock{}, non_negative_integer()}
   def finalizedtip_helper(client, leafs, best_block, best_depth, n) do
     if length(MapSet.to_list(leafs)) == 0 do
       {best_block, best_depth}
@@ -143,7 +145,8 @@ defmodule PClient do
     end
   end
 
- #this function returns the finlized tip block in the longest chain of the blockchain
+  #this function returns the finlized tip block in the longest chain of the blockchain
+  @spec finalizedtip(%PClient{}, non_negative_integer()) :: %PBlock{}
   def finalizedtip(client, n) do
       best_block = PBlock.genesis()
       best_depth = Utilities.depth(best_block)
@@ -157,11 +160,13 @@ defmodule PClient do
 
 
   #This function returns the ledger
+  @spec ledger(%PClient{}, non_negative_integer()) :: list(string())
   def ledger(client, n) do
     Utilities.ledger(finalizedtip(client, n))
   end
 
   #this function is a helper function for the allblocks function
+  @spec allblocks_helper() :: %MapSet{}
   defp allblocks_helper(leafs) do
     if length(leafs) == 0 do
       MapSet.new()
@@ -173,6 +178,7 @@ defmodule PClient do
   end
 
   #this funciton returns all blocks
+  @spec allblocks(%PClient{}) :: %MapSet{}
   def allblocks(client) do
     blocks = MapSet.new()
     leafs = MapSet.to_list(client.leafs)
@@ -181,6 +187,7 @@ defmodule PClient do
 
 
   #slot helper function
+  @spec slot_helper(%PClient{},  non_negative_integer(), list(), non_negative_integer()) :: %PClient{}
   def slot_helper(client, t, msg_in, bft_delay) do
     if length(msg_in) == 0 do
       client
@@ -208,6 +215,7 @@ defmodule PClient do
     end
   end
 
+  @spec slote_vote_helper(%PClient{}, list()) :: %PClient{}
   def slot_vote_helper(client, msgs_in) do
     if len(msgs_in) == 0 do
       client
@@ -223,7 +231,8 @@ defmodule PClient do
     end
   end
 
-  def slot(client, t, msgs_out, msgs_in, bft_delay, n) do
+  @spec slot!(%PClient{}, non_negative_integer(), list(), list(), non_negative_integer(), non_negative_integer()) :: {%PClient{}, list()}
+  def slot!(client, t, msgs_out, msgs_in, bft_delay, n) do
     #update proposal
     client = slot_helper(client, t, msgs_in)
     #update votes
@@ -260,6 +269,7 @@ defmodule PMsgProposal do
     block: nil
   )
 
+  @spec new(non_negative_integer(), non_negative_integer(), %PBlock{}) :: %PMsgProposal{}
   def new(t, id, block) do
     %{
       t: t,
@@ -275,7 +285,7 @@ defmodule PMsgVote do
     id: nil,
     block: nil
   )
-
+  @spec new(non_negative_integer(), non_negative_integer(), %PBlock{}) :: %PMsgVote{}
   def new(t, id, block) do
     %{
       t: t,
