@@ -4,7 +4,7 @@ defmodule DABlock do
     payload: nil
   )
 
-  @spec new(%DABlock{} | nil, list(string())) ::%DABlock{}
+  @spec new(%DABlock{} | nil, list(String.t())) ::%DABlock{}
   def new(parent, payload) do
     %DABlock{
       parent: parent,
@@ -25,7 +25,7 @@ defmodule DAClient do
     rng_mining: nil
   )
 
-  @spec new(non_negative_integer()) :: %DAClient{}
+  @spec new(non_neg_integer()) :: %DAClient{}
   def new(id) do
     %DAClient{
       id: id,
@@ -40,7 +40,7 @@ defmodule DAClient do
     hd(leafs)
   end
 
-  @spec confirmedtinp_helper(%DABlock{}, non_negative_integer()) ::
+  @spec confirmedtip_helper(%DABlock{}, non_neg_integer()) :: %DABlock{}
   defp confirmedtip_helper(block, k) do
     cond do
       k == 0 or block == DABlock.genesis() ->
@@ -51,14 +51,14 @@ defmodule DAClient do
     end
   end
 
-  @spec confirmedtip(%DABlock{}, non_negative_integer()) :: %DABlock{}
+  @spec confirmedtip(%DABlock{}, non_neg_integer()) :: %DABlock{}
   def confirmedtip(client, k) do
     b = tip(client)
     confirmedtip_helper(b, k)
   end
 
 
-  @spec ledger(%DAClient{}, non_negative_integer()) :: list(string())
+  @spec ledger(%DAClient{}, non_neg_integer()) :: list(String.t())
   def ledger(client, k) do
     Utilities.ledger(confirmedtip(client, k))
   end
@@ -80,7 +80,7 @@ defmodule DAMsgNewBlock do
     block: nil
   )
 
-  @spec new(non_negative_integer(), non_negative_integer(), %DABlock{}) :: %DAMsgNewBlock{}
+  @spec new(non_neg_integer(), non_neg_integer(), %DABlock{}) :: %DAMsgNewBlock{}
   def new(t, id, block) do
     %DAMsgNewBlock{t: t, id: id, block: block}
   end
@@ -95,7 +95,7 @@ defmodule DAMsgNewBlock do
     false
   end
 
-  @spec slot!(%DABlock{}, non_negative_integer(), list(), list(), any(), any()) :: {client_da, msgs_out}
+  @spec slot!(%DABlock{}, non_neg_integer(), list(), list(), any(), any()) :: {client_da, msgs_out}
   def slot!(client, t, msgs_out, msgs_in, role \\ :honest, prob_pos_mining_success_per_slot) do
     daMsgs = Enum.filter(msgs_in, fn x -> daMsgNewBlock?(x) end)
     diff = daMsgs

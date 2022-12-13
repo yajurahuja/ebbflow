@@ -1,0 +1,3 @@
+%{
+  "tinymt": {:hex, :tinymt, "0.3.2", "679e205497757c85d7545e1774665412d9715fdf28ee8a82bef225a0db4b1b01", [:make, :mix], [], "hexpm", "b7c7e502a5fe3bdf5405bfa8dc54ad80264b9c773bfe386bbff372b347c23bf2"},
+}

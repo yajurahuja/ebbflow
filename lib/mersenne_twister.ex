@@ -32,7 +32,7 @@ defmodule MersenneTwister do
     init(round(seed*(1 <<< mt.w)),mt)
   end
 
-  def init(seed,mt) when is_bitstring(seed) do
+  def init(seed,_) when is_bitstring(seed) do
     raise ArgumentError, message: "Invalid seed type: String"
   end
 

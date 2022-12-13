@@ -2,7 +2,9 @@ defmodule OverviewSimulation do
   	
   @type validator() :: %HonestValidator{} | %AdversarialValidator{}
 
-	defstruct[
+  import Enum
+
+	defstruct(
 		#network simulation
 		second: 1,
 		minute: 60,
@@ -22,9 +24,9 @@ defmodule OverviewSimulation do
 		k: 20,
 
 		#p params
-		deltaBft: 5
+		deltaBft: 5,
 
-		rngDa = MersenneTwister.init(2121+1)
+		rngDa: nil,
 
 		validators: nil,
 
@@ -46,27 +48,35 @@ defmodule OverviewSimulation do
 		genesisDA: nil,
 		genesisP: nil
 
-	]
+	)
 
 	@spec new() :: %OverviewSimulation{}
 	def new(n, f) do 
-		validators = for id <- 1..n, 
-			do (if id<= (n-f) do %HonestValidator(id) else %AdversarialValidator(id) end)
+		validators = 
+			for id <- 1..n do 
+				if id<= (n-f) do 
+					HonestValidator.new(id) 
+				else 
+					AdversarialValidator.new(id) 
+				end 
+			end
 		genesisDA = DABlock.genesis()
 		%OverviewSimulation{
+			rngDa: MersenneTwister.init(2121+1),
+
 			validators: validators,
 			
-			validatorsHonest: for id <- 1..(n-f), do id,
-			validatorsAdversarial: for id <- (n-f+1)..n, do id,
+			validatorsHonest: for id <- 1..(n-f) do id end,
+			validatorsAdversarial: for id <- (n-f+1)..n do id end,
 			
-			validatorsAwake: for id <- 1..n, do id,
+			validatorsAwake: for id <- 1..n do id end,
 			validatorsAsleep: [],
 			
-			validatorsPart1: for id <- 1..(n-f)/2, do id,
-			validatorsPart2: for id <- ((n-f)/2+1)..(n-f), do id,
+			validatorsPart1: for id <- 1..(n-f)/2 do id end,
+			validatorsPart2: for id <- ((n-f)/2+1)..(n-f) do id end,
 
 			msgsInflight: Map.new(),
-			msgsMissed: Map.new(for v <- validators, {v.id, []}),
+			msgsMissed: Map.new(for v <- validators do {v.id, []} end),
 
 			livenessPhase: [],
 
@@ -120,19 +130,19 @@ defmodule OverviewSimulation do
 		:rand.seed(config.rngDa)
 		dir = 
 			cond do
-				List.length(awake) == 60 -> random([:toawake, :nothing])
-				List.length(awake) == (config.n-config.f) -> random([:nothing, :toasleep])
-				_ -> random([:toawake, :toasleep])
+				List.length(config.validatorsAwake) == 60 -> random([:toawake, :nothing])
+				List.length(config.validatorsAwake) == (config.n-config.f) -> random([:nothing, :toasleep])
+				true -> random([:toawake, :toasleep])
 			end
 
 		cond do
 			dir == :toawake -> 
 				config = shuffleAsleep(config)
-				popAsleep(pushAwake(config, head(config.validatorsAsleep)))
+				popAsleep(pushAwake(config, List.head(config.validatorsAsleep)))
 			dir == :toasleep -> 
 				config = shuffleAwake(config)
-				popAwake(pushAsleep(config, head(config.validatorsAwake)))
-			_ -> config
+				popAwake(pushAsleep(config, List.head(config.validatorsAwake)))
+			true -> config
 		end
 	end
 
@@ -140,8 +150,14 @@ defmodule OverviewSimulation do
 	@spec replaceValidator(%OverviewSimulation{}, non_neg_integer(), validator()) 
 		:: %OverviewSimulation{}
 	def replaceValidator(config, validatorId, newValidator) do
-		%{config | validators: map(config.validators, 
-				fn x -> (if x.id == validatorId, do: newValidator, else: x end))}
+		%{config | validators: 
+			map(config.validators, 
+				fn x -> 
+					if x.id == validatorId do 
+						newValidator 
+					else 
+						x 
+					end)}
 	end
 
 	# Computes honest awake validator actions for this slot.
@@ -286,7 +302,7 @@ defmodule OverviewSimulation do
 		cond do
 
 			t == config.tEnd+1 -> config
-			_ -> 
+			true -> 
 			
 				config = daTick(config)
 
@@ -295,7 +311,7 @@ defmodule OverviewSimulation do
 						case config.livenessPhaseStart do
 							nil -> 
 								if List.length(config.validatorsAwake) >= 67 do
-									%{config | livenessPhaseStart = t}
+									%{config | livenessPhaseStart: t}
 								else
 									config
 								end
@@ -303,7 +319,7 @@ defmodule OverviewSimulation do
 								if List.length(config.validatorsAwake) < 67 or t == config.tEnd do
 									config = pushLivenessPhase(config, 
 										{config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
-									%{config | livenessPhaseStart = nil}
+									%{config | livenessPhaseStart: nil}
 								else
 									config
 								end
@@ -318,7 +334,7 @@ defmodule OverviewSimulation do
 					config.validatorsAwake, [], [])
 
 				{tDeliverInter, tDeliverIntra} = 
-					if config.tPartStop <= t < tPartStop do
+					if config.tPartStop <= t and t < tPartStop do
 						{Enum.max(t+config.delta, config.tPartStop), t+config.delta}
 					else
 						{t+config.delta, t+config.delta}
@@ -326,10 +342,10 @@ defmodule OverviewSimulation do
 
 				config = modifyInflightMessages(config, tDeliverInter, 
 					Map.get(config.msgsInflight, tDeliverInter, 
-						(Map.new(for v <- 1..config.n, {v.id, []})))
+						(Map.new(for v <- 1..config.n do {v.id, []} end))))
 				config = modifyInflightMessages(config, tDeliverIntra, 
 					Map.get(config.msgsInflight, tDeliverIntra, 
-						(Map.new(for v <- 1..config.n, {v.id, []})))
+						(Map.new(for v <- 1..config.n do {v.id, []} end))))
 
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverInter, msgsOutPart2)
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverIntra, msgsOutPart1)
@@ -344,7 +360,7 @@ defmodule OverviewSimulation do
 						msgsHonest, msgsInAll)
 
 				config = %{config | msgsInflight: Map.get(config.msgsInflight, t+1, 
-					Map.new(for v <- config.validators, {v.id, []}))}
+					Map.new(for v <- config.validators do {v.id, []} end))}
 
 				config = prependInflightMessages(msgsInflight, config.validatorsHonest, 
 					t+1, msgsOutRushHonest)

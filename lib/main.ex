@@ -5,7 +5,7 @@ defmodule Main do
 	def start(_type, _args) do
 		config = OverviewSimulation.new()
 
-		config = OverviewSimulation.runSimulation(config, 0)
+		_ = OverviewSimulation.runSimulation(config, 0)
 	end
 	
 end
