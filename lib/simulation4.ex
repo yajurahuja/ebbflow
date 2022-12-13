@@ -1,4 +1,6 @@
 defmodule OverviewSimulation do
+  	
+  @type validator() :: %HonestValidator{} | %AdversarialValidator{}
 
 	defstruct[
 		#network simulation
@@ -93,7 +95,7 @@ defmodule OverviewSimulation do
 		%{config | livenessPhase: config.livenessPhase ++ [val]}
 	end
 
-	@spec daTick(%OverviewSimulation) :: %OverviewSimulation
+	@spec daTick(%OverviewSimulation{}) :: %OverviewSimulation{}
 	def daTick(config) do
 		:rand.seed(config.rngDa)
 		dir = 
@@ -104,10 +106,19 @@ defmodule OverviewSimulation do
 			end
 
 		cond do
-			dir == :toawake -> popAsleep(pushAwake(config, head(config.validatorsAsleep)))
-			dir == :toasleep -> popAwake(pushAsleep(config, head(config.validatorsAwake)))
+			dir == :toawake -> 
+				config = shuffleAsleep(config)
+				popAsleep(pushAwake(config, head(config.validatorsAsleep)))
+			dir == :toasleep -> 
+				config = shuffleAwake(config)
+				popAwake(pushAsleep(config, head(config.validatorsAwake)))
 			_ -> config
 		end
+	end
+
+	@spec replaceValidator(%OverviewSimulation{}, non_neg_integer(), validator()) :: %OverviewSimulation{}
+	def replaceValidator(config, validatorId, newValidator) do
+		%{config | validators: map(config.validators, fn x -> (if x.id == validatorId, do: newValidator, else: x end))}
 	end
 
 	def slotHonestMsgs(config, validatorIds, msgsOutPart1, msgsOutPart2) do
@@ -121,12 +132,12 @@ defmodule OverviewSimulation do
 							if Utilities.checkMembership(config.validatorsPart1, validatorId) do
 								{validator, msgsOutPart1} = 
 									HonestValidator.slot(at(config.validators, validatorId), t, msgsOutPart1, config.msgsMissed[validatorId] ++ msgsIn)
-								config = %{config | validators: map(config.validators, fn x -> (if x.id == validatorId, do: validator, else: x end))}
+								config = replaceValidator(config, validatorId, validator)
 								{config, msgsOutPart1, msgsOutPart2}
 							else
 								{validator, msgsOutPart2} = 
 									HonestValidator.slot(at(config.validators, validatorId), t, msgsOutPart2, config.msgsMissed[validatorId] ++ msgsIn)
-								config = %{config | validators: map(config.validators, fn x -> (if x.id == validatorId, do: validator, else: x end))}
+								config = replaceValidator(config, validatorId, validator)
 								{config, msgsOutPart1, msgsOutPart2}
 							end
 						config = %{config | msgsMissed: Map.drop(config.msgsMissed, validatorId)}
@@ -183,17 +194,10 @@ defmodule OverviewSimulation do
 			[validatorId | tail] ->
 				msgsIn = Map.get(config.msgsInAll, validatorId, [])
 				{validator, msgsOutPrivateAdversarial, msgsOutRushHonest} = 
-				AdversarialValidator.slot(at(config.validator, validatorId), 
-					config.n, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsIn, msgsHonest)
-				config = %{config | validators: map(config.validators, fn x -> (if x.id == validatorId, do: validator, else: x end))}
+					AdversarialValidator.slot(at(config.validator, validatorId), 
+						config.n, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsIn, msgsHonest)
+				config = replaceValidator(config, validatorId, validator)
 				slotAdversarialMessages(config, tail, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsHonest, msgsInAll)
-	end
-
-	def prepareHonestMessages(config, validatorIds, t, msgsOutRushHonest) do
-		case validatorIds do
-			[] -> config
-			[head | tail] -> 
-
 	end
 
 	def runSimulation(config, t) do
