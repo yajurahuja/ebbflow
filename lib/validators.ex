@@ -47,12 +47,12 @@ defmodule Validator do
       }
     end
 
-    @spec slot(%HonestValidator{}, non_neg_integer(), list(msg()), list(msg())) :: {%DAClient{}, %PClient{}, list(msg())}
+    @spec slot(%HonestValidator{}, non_neg_integer(), list(msg()), list(msg())) :: {%HonestValidator{}, list(msg())}
     def slot(validator, t, msgs_out, msgs_in) do
       {client_da, msgs_out} = DAClient.slot(v.client_da, t, msgs_out, msgs_in, :honest)
       {client_p, msgs_out} = PClient.slot(v.client_p, t, msgs_out, msgs_in)
 
-      {client_da, client_p, msgs_out}
+      {%{validator | client_da: client_da, client_p: client_p}, msgs_out}
     end
 
     @spec lp(%HonestValidator{}) :: list(string)
@@ -99,9 +99,11 @@ defmodule Validator do
       end
     end
 
-    @spec slot(%AdversarialValidator{}, non_neg_integer(), non_neg_integer(), list(msg()), list(msg()), list(msg()), list(msg())) :: list(msg())
+    @spec slot(%AdversarialValidator{}, non_neg_integer(), non_neg_integer(), list(msg()), list(msg()), list(msg()), list(msg())) :: {%AdversarialValidator{}, list(msg()), list(msg())}
     def slot(validator, n, t, msgs_out_private_adversarial, msgs_out_rush_honest, msgs_in, msgs_in_rush_honest) do
-      DAClient.validator(validator, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial)
+      {client_da, msgs_out_private_adversarial} = DAClient.slot(validator, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial)
+
+      validator = %{validator | client_da: client_da}
 
       if validator.id == n do
         d = findMaxBlockDepth(msgs_in_rush_honest, -1)
@@ -110,15 +112,15 @@ defmodule Validator do
           blk = DAClient.tip(validator.client_da)
 
           if Utilities.depth(d) < d do
-            msgs_out_rush_honest
+            {validator, msgs_out_private_adversarial, msgs_out_rush_honest}
           else
-            msgs_out_rush_honest ++ [DAMsgNewBlock.new(t, validator.client_da.id, blk)]
+            {validator, msgs_out_private_adversarial, msgs_out_rush_honest ++ [DAMsgNewBlock.new(t, validator.client_da.id, blk)]}
           end
         else
-          msgs_out_rush_honest
+          {validator, msgs_out_private_adversarial, msgs_out_rush_honest}
         end
       else
-        msgs_out_rush_honest
+        {validator, msgs_out_private_adversarial, msgs_out_rush_honest}
       end
     end
 

@@ -29,11 +29,11 @@ defmodule OverviewSimulation do
 		validatorsHonest: nil,
 		validatorsAdversarial: nil,
 
-		awakeValidators: nil,
-		asleepValidators: nil,
+		validatorsAwake: nil,
+		validatorsAsleep: nil,
 
-		part1Validators: nil,
-		part2Validators: nil,
+		validatorsPart1: nil,
+		validatorsPart2: nil,
 
 		msgsInflight: nil,
 		msgsMissed: nil,
@@ -49,44 +49,44 @@ defmodule OverviewSimulation do
 		%OverviewSimulation{
 			validators: validators,
 			
-			validatorsHonest: Enum.slice(validators, 0, n-f),
-			validatorsAdversarial: Enum.slice(validators, n-f, f),
+			validatorsHonest: for id <- 1..(n-f), do id,
+			validatorsAdversarial: for id <- (n-f+1)..n, do id,
 			
-			validatorsAwake: validators,
+			validatorsAwake: for id <- 1..n, do id,
 			validatorsAsleep: [],
 			
-			validatorsPart1: Enum.slice(validators, 0, (n-f)/2),
-			validatorsPart2: Enum.slice(validators, (n-f)/2, (n-f)-(n-f)/2),
+			validatorsPart1: for id <- 1..(n-f)/2, do id,
+			validatorsPart2: for id <- ((n-f)/2+1)..(n-f), do id,
 
 			msgsInflight: Map.new(),
-			msgsMissed: Map.new(for v <- validators, {v, []}),
+			msgsMissed: Map.new(for v <- validators, {v.id, []}),
 
 			livenessPhase: []
 		}
 	end
 
 	def shuffleAwake(config) do
-		%{config | awakeValidators: enum.shuffle(config.awakeValidators)}
+		%{config | validatorsAwake: shuffle(config.validatorsAwake)}
 	end
 
 	def shuffleAsleep(config) do
-		%{config | asleepValidators: enum.shuffle(config.asleepValidators)}
+		%{config | validatorsAsleep: shuffle(config.validatorsAsleep)}
 	end
 
 	def popAwake(config) do
-		%{config | awakeValidators: List.tail(config.awakeValidators)}
+		%{config | validatorsAwake: List.tail(config.validatorsAwake)}
 	end
 
 	def popAsleep(config) do
-		%{config | asleepValidators: List.tail(config.asleepValidators)}
+		%{config | validatorsAsleep: List.tail(config.validatorsAsleep)}
 	end
 
 	def pushAwake(config, val) do
-		%{config | awakeValidators: config.awakeValidators ++ [val]}
+		%{config | validatorsAwake: config.validatorsAwake ++ [val]}
 	end
 
 	def pushAsleep(config, val) do
-		%{config | asleepValidators: config.asleepValidators ++ [val]}
+		%{config | validatorsAsleep: config.validatorsAsleep ++ [val]}
 	end
 
 	def pushLivenessPhase(config, val) do
@@ -98,90 +98,175 @@ defmodule OverviewSimulation do
 		:rand.seed(config.rngDa)
 		dir = 
 			cond do
-				List.length(awake) == 60 -> Enum.random([:toawake, :nothing])
-				List.length(awake) == (config.n-config.f) -> Enum.random([:nothing, :toasleep])
-				_ -> Enum.random([:toawake, :toasleep])
+				List.length(awake) == 60 -> random([:toawake, :nothing])
+				List.length(awake) == (config.n-config.f) -> random([:nothing, :toasleep])
+				_ -> random([:toawake, :toasleep])
 			end
 
 		cond do
-			dir == :toawake -> popAsleep(pushAwake(config, head(config.asleepValidators)))
-			dir == :toasleep -> popAwake(pushAsleep(config, head(config.awakeValidators)))
+			dir == :toawake -> popAsleep(pushAwake(config, head(config.validatorsAsleep)))
+			dir == :toasleep -> popAwake(pushAsleep(config, head(config.validatorsAwake)))
 			_ -> config
 		end
 	end
 
-	def honestMsgManage(config, validators, msgsOutPart1, msgsOutPart2) do
-		case validators do
+	def slotHonestMsgs(config, validatorIds, msgsOutPart1, msgsOutPart2) do
+		case validatorIds do
 			[] -> {config, msgsOutPart1, msgsOutPart2}
-			[validator | tail] ->
-				msgsIn = Map.get(config.msgsInAll)
-				config = 
-					if Utilities.checkMembership(config.awakeValidators, validator) do
-						msgsOut = 
-							if Utilities.checkMembership(config.validatorsPart1, validator) do
-								msgsOutPart1
+			[validatorId | tail] ->
+				msgsIn = Map.get(config.msgsInAll, validatorId, [])
+				{config, msgsOutPart1, msgsOutPart2} = 
+					if Utilities.checkMembership(config.validatorsAwake, validatorId) do
+						{config, msgsOutPart1, msgsOutPart2} = 
+							if Utilities.checkMembership(config.validatorsPart1, validatorId) do
+								{validator, msgsOutPart1} = 
+									HonestValidator.slot(at(config.validators, validatorId), t, msgsOutPart1, config.msgsMissed[validatorId] ++ msgsIn)
+								config = %{config | validators: map(config.validators, fn x -> (if x.id == validatorId, do: validator, else: x end))}
+								{config, msgsOutPart1, msgsOutPart2}
 							else
-								msgsOutPart2
+								{validator, msgsOutPart2} = 
+									HonestValidator.slot(at(config.validators, validatorId), t, msgsOutPart2, config.msgsMissed[validatorId] ++ msgsIn)
+								config = %{config | validators: map(config.validators, fn x -> (if x.id == validatorId, do: validator, else: x end))}
+								{config, msgsOutPart1, msgsOutPart2}
 							end
-						HonestValidator.slot(validator, t, msgs_out, config.msgsMissed[validator] ++ msgsIn)
-						%{config | msgsMissed: Map.drop(config.msgsMissed, validator)}
+						config = %{config | msgsMissed: Map.drop(config.msgsMissed, validatorId)}
+						{config, msgsOutPart1, msgsOutPart2}
 					else
-						%{config | msgsMissed: Map.replace(config.msgsMissed, validator, config.msgsMissed[validator] ++ msgsIn)}
+						config = %{config | msgsMissed: Map.replace(config.msgsMissed, validatorId, config.msgsMissed[validatorId] ++ msgsIn)}
+						{config, msgsOutPart1, msgsOutPart2}
 					end
-				honestMsgManage(config, tail, msgsOutPart1, msgsOutPart2)
+				slotHonestMsgs(config, tail, msgsOutPart1, msgsOutPart2)
 		end
 	end
 
+	def modifyInflightMessages(config, t, val) do
+		%{config | msgsInflight: Map.put(config.msgsInflight, t, val) }
+	end
+
+	def appendInflightMessagesValidator(config, t, validatorId, newMessages) do
+		tMessages = config.msgsInflight[t]
+		validatorMessages = tMessages[validatorId] ++ newMessages
+
+		%{config | msgsInflight: Map.put(config.tMessages, t, 
+			Map.put(tMessages, validatorId, validatorMessages))}
+	end
+
+	def prependInflightMessagesValidator(config, t, validatorId, newMessages) do
+		tMessages = config.msgsInflight[t]
+		validatorMessages = newMessages ++ tMessages[validatorId]
+
+		%{config | msgsInflight: Map.put(config.tMessages, t, 
+			Map.put(tMessages, validatorId, validatorMessages))}
+	end
+
+	def appendInflightMessages(config, validatorIds, t, msgs) do
+		case validatorIds do
+			[] -> config
+			[validatorId | tail] ->
+				config = appendInflightMessagesValidator(config, t, validatorId, msgs)
+				appendInflightMessages(config, tail, t, msgs)
+		end
+	end
+
+	def prependInflightMessages(config, validatorIds, t, msgs) do
+		case validatorIds do
+			[] -> config
+			[validatorId | tail] ->
+				config = prependInflightMessagesValidator(config, t, validatorId, msgs)
+				prependInflightMessages(config, tail, t, msgs)
+		end
+	end
+
+	def slotAdversarialMessages(config, validatorIds, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsHonest, msgsInAll) do
+		case validatorIds do
+			[] -> {config, msgsOutPrivateAdversarial, msgsOutRushHonest}
+			[validatorId | tail] ->
+				msgsIn = Map.get(config.msgsInAll, validatorId, [])
+				{validator, msgsOutPrivateAdversarial, msgsOutRushHonest} = 
+				AdversarialValidator.slot(at(config.validator, validatorId), 
+					config.n, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsIn, msgsHonest)
+				config = %{config | validators: map(config.validators, fn x -> (if x.id == validatorId, do: validator, else: x end))}
+				slotAdversarialMessages(config, tail, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsHonest, msgsInAll)
+	end
+
+	def prepareHonestMessages(config, validatorIds, t, msgsOutRushHonest) do
+		case validatorIds do
+			[] -> config
+			[head | tail] -> 
+
+	end
+
 	def runSimulation(config, t) do
-		config = daTick(config)
 
-		config = 
-			if rem(t, 15*config.second) == 0 do
-				case config.livenessPhaseStart do
-					nil -> 
-						if List.length(config.awakeValidators) >= 67 do
-							%{config | livenessPhaseStart = t}
-						else
-							config
+		cond do
+
+			t == config.tEnd -> config
+			_ -> 
+			
+				config = daTick(config)
+
+				config = 
+					if rem(t, 15*config.second) == 0 do
+						case config.livenessPhaseStart do
+							nil -> 
+								if List.length(config.validatorsAwake) >= 67 do
+									%{config | livenessPhaseStart = t}
+								else
+									config
+								end
+							_ -> 
+								if List.length(config.validatorsAwake) < 67 or t == config.tEnd do
+									config = pushLivenessPhase(config, {config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
+									%{config | livenessPhaseStart = nil}
+								else
+									config
+								end
 						end
-					_ -> 
-						if List.length(config.awakeValidators) < 67 or t == config.tEnd do
-							config = pushLivenessPhase(config, {config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
-							%{config | livenessPhaseStart = nil}
-						else
-							config
-						end
-				end
-			else
-				config
-			end
+					else
+						config
+					end
 
-		msgsInAll = Map.get(config.msgsInflight, t, Map.new())
+				msgsInAll = Map.get(config.msgsInflight, t, Map.new())
 
-		{config, msgsOutPart1, msgsOutPart2} = honestMsgManage(config, config.awakeValidators, [], [])
+				{config, msgsOutPart1, msgsOutPart2} = slotHonestMsgs(config, config.validatorsAwake, [], [])
+
+				{tDeliverInter, tDeliverIntra} = 
+					if config.tPartStop <= t < tPartStop do
+						{Enum.max(t+config.delta, config.tPartStop), t+config.delta}
+					else
+						{t+config.delta, t+config.delta}
+					end
+
+				config = modifyInflightMessages(config, tDeliverInter, 
+					Map.get(config.msgsInflight, tDeliverInter, (Map.new(for v <- 1..config.n, {v.id, []})))
+				config = modifyInflightMessages(config, tDeliverIntra, 
+					Map.get(config.msgsInflight, tDeliverIntra, (Map.new(for v <- 1..config.n, {v.id, []})))
+
+				config = appendInflightMessages(config, config.validatorsPart1, tDeliverInter, msgsOutPart2)
+				config = appendInflightMessages(config, config.validatorsPart1, tDeliverIntra, msgsOutPart1)
+
+				config = appendInflightMessages(config, config.validatorsPart2, tDeliverInter, msgsOutPart1)
+				config = appendInflightMessages(config, config.validatorsPart2, tDeliverIntra, msgsOutPart2)
+
+				msgsHonest = msgsOutPart1 ++ msgsOutPart2
+
+				{config, msgsOutPrivateAdversarial, msgsOutRushHonest} = 
+					slotAdversarialMessages(config, config.validatorsAdversarial, t, [], [], msgsHonest, msgsInAll)
+
+				config = %{config | msgsInflight: Map.get(config.msgsInflight, t+1, Map.new(for v <- config.validators, {v.id, []}))}
+
+				config = prependInflightMessages(msgsInflight, config.validatorsHonest, t+1, msgsOutRushHonest)
+
+				config = appendInflightMessages(msgsInflight, config.validatorsAdversarial, t+1, msgsOutPrivateAdversarial)
+				config = appendInflightMessages(msgsInflight, config.validatorsAdversarial, t+1, msgsOutRushHonest)
+
+				runSimulation(config, t+1)
+		end
 
 	end
 
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
