@@ -180,7 +180,7 @@ defmodule OverviewSimulation do
 							if Utilities.checkMembership(validatorId, config.validatorsPart1) do
 								{validator, msgsOutPart1} = 
 									HonestValidator.slot(at(config.validators, validatorId), t, 
-										msgsOutPart1, config.msgsMissed[validatorId] ++ msgsIn,
+										msgsOutPart1, getMissedMessages(config, validatorId) ++ msgsIn,
 										config)
 								
 								config = replaceValidator(config, validatorId, validator)
@@ -188,7 +188,7 @@ defmodule OverviewSimulation do
 							else
 								{validator, msgsOutPart2} = 
 									HonestValidator.slot(at(config.validators, validatorId), t, 
-										msgsOutPart2, config.msgsMissed[validatorId] ++ msgsIn,
+										msgsOutPart2, getMissedMessages(config, validatorId) ++ msgsIn,
 										config)
 								
 								config = replaceValidator(config, validatorId, validator)
@@ -204,6 +204,11 @@ defmodule OverviewSimulation do
 					end
 				slotHonestMsgs(config, t, tail, msgsInAll, msgsOutPart1, msgsOutPart2)
 		end
+	end
+
+	@spec getMissedMessages(%OverviewSimulation{}, non_neg_integer()) :: list(Validator.msg())
+	def getMissedMessages(config, validatorId) do
+		Map.get(config.msgsMissed, validatorId, [])
 	end
 
 	@spec getInflightMessages(%OverviewSimulation{}, non_neg_integer()) :: %{validator() => list(Validator.msg())}
