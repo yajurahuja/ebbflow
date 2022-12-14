@@ -31,7 +31,7 @@ defmodule PBlock do
   def leader(t, n, bft_delay) do
     e = epoch(t, bft_delay)
     #TODO: fix seeding according to TSE group, check if required
-    :rand.seed(4242 + e)
+    # :rand.seed(4242 + e)
     Enum.random(1..n)
   end
 
@@ -79,7 +79,7 @@ defmodule PClient do
     leafs: nil,
     votes: nil,
     current_epoch_proposal: nil,
-    genesis: nil
+    global_genesis_block: nil
   )
 
   @spec new(non_neg_integer(), %DAClient{}, %PBlock{}) :: %PClient{}
@@ -90,7 +90,7 @@ defmodule PClient do
       leafs: MapSet.new([global_genesis_block]),
       votes: %{}, #Key => Value:  PBlock => Set{int}
       current_epoch_proposal: nil,
-      genesis: global_genesis_block
+      global_genesis_block: global_genesis_block
     }
   end
 
@@ -264,8 +264,8 @@ defmodule PClient do
     end
   end
 
-  @spec slot!(%PClient{}, non_neg_integer(), list(), list(), non_neg_integer(), non_neg_integer()) :: {%PClient{}, list()}
-  def slot!(client, t, msgs_out, msgs_in, bft_delay, n) do
+  @spec slot!(%PClient{}, non_neg_integer(), list(), list(), non_neg_integer(), non_neg_integer(), non_neg_integer()) :: {%PClient{}, list()}
+  def slot!(client, t, msgs_out, msgs_in, bft_delay, n, k) do
     #update proposal
     client = slot_helper(client, t, msgs_in, bft_delay)
     #update votes
@@ -275,7 +275,7 @@ defmodule PClient do
       client = %{client | current_epoch_proposal: nil}
       msgs_out =
       if PBlock.leader(t, n, bft_delay) == client.id do
-        new_pblock = PBlock.new(tip(client, n), PBlock.epoch(t, bft_delay), DAClient.confirmed_tip(client.client_da))
+        new_pblock = PBlock.new(tip(client, n), PBlock.epoch(t, bft_delay), DAClient.confirmedtip(client.client_da, k))
         msgs_out ++ [PMsgProposal.new(t, client.id, new_pblock)]
       else
         msgs_out

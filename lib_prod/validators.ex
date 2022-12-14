@@ -51,7 +51,7 @@ defmodule HonestValidator do
   @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg()), float()) :: {%HonestValidator{}, list(Validator.msg())}
   def slot(validator, t, msgs_out, msgs_in, config) do
     {client_da, msgs_out} = DAMsgNewBlock.slot!(validator.client_da, t, msgs_out, msgs_in, :honest, (config.lambda/config.n)/config.second)
-    {client_p, msgs_out} = PClient.slot!(validator.client_p, t, msgs_out, msgs_in, config.bftDelay, config.n)
+    {client_p, msgs_out} = PClient.slot!(validator.client_p, t, msgs_out, msgs_in, config.deltaBft, config.n, config.k)
 
     {%{validator | client_da: client_da, client_p: client_p}, msgs_out}
   end

@@ -52,10 +52,11 @@ defmodule OverviewSimulation do
 		genesisDA = DABlock.genesis()
 		genesisP = PBlock.genesis(genesisDA)
 		validators = 
-			for id <- 1..n do 
-				if id<= (n-f) do 
+			for id <- 0..(n-1) do 
+				if id < (n-f) do 
 					HonestValidator.new(id, genesisDA, genesisP) 
 				else 
+					# IO.puts(id)
 					AdversarialValidator.new(id, genesisDA, genesisP) 
 				end 
 			end
@@ -67,14 +68,14 @@ defmodule OverviewSimulation do
 
 			validators: validators,
 			
-			validatorsHonest: for id <- 1..(n-f) do id end,
-			validatorsAdversarial: for id <- (n-f+1)..n do id end,
+			validatorsHonest: for id <- 0..(n-f-1) do id end,
+			validatorsAdversarial: for id <- (n-f)..(n-1) do id end,
 			
-			validatorsAwake: for id <- 1..(n-f) do id end,
+			validatorsAwake: for id <- 0..(n-f-1) do id end,
 			validatorsAsleep: [],
 			
-			validatorsPart1: for id <- 1..div((n-f), 2) do id end,
-			validatorsPart2: for id <- (div((n-f), 2)+1)..(n-f) do id end,
+			validatorsPart1: for id <- 0..(div((n-f), 2)-1) do id end,
+			validatorsPart2: for id <- (div((n-f), 2))..(n-f-1) do id end,
 
 			msgsInflight: Map.new(),
 			msgsMissed: Map.new(for v <- validators do {v.id, []} end),
@@ -124,7 +125,6 @@ defmodule OverviewSimulation do
 	def daTick(config) do
 		# :rand.seed(config.rngDa) 
 		# TODO seed
-		IO.puts(inspect(length(config.validatorsAwake)))
 		dir = 
 			cond do
 				length(config.validatorsAwake) == 60 -> random([:toawake, :nothing])
@@ -195,7 +195,7 @@ defmodule OverviewSimulation do
 								{config, msgsOutPart1, msgsOutPart2}
 							end
 						
-						config = %{config | msgsMissed: Map.drop(config.msgsMissed, validatorId)}
+						config = %{config | msgsMissed: Map.drop(config.msgsMissed, [validatorId])}
 						{config, msgsOutPart1, msgsOutPart2}
 					else
 						config = %{config | msgsMissed: Map.replace(config.msgsMissed, 
@@ -344,10 +344,10 @@ defmodule OverviewSimulation do
 
 				config = modifyInflightMessages(config, tDeliverInter, 
 					Map.get(config.msgsInflight, tDeliverInter, 
-						(Map.new(for v <- 1..config.n do {v.id, []} end))))
+						(Map.new(for v <- 0..(config.n-1) do {v.id, []} end))))
 				config = modifyInflightMessages(config, tDeliverIntra, 
 					Map.get(config.msgsInflight, tDeliverIntra, 
-						(Map.new(for v <- 1..config.n do {v.id, []} end))))
+						(Map.new(for v <- 0..(config.n-1) do {v.id, []} end))))
 
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverInter, msgsOutPart2)
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverIntra, msgsOutPart1)
