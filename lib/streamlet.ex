@@ -24,7 +24,7 @@ defmodule PBlock do
 
   @spec epoch(non_neg_integer(), non_neg_integer()) :: number()
   def epoch(t, bft_delay) do
-    t / (2 * bft_delay)
+    div(t , (2 * bft_delay))
   end
 
   @spec leader(non_neg_integer(), non_neg_integer(), non_neg_integer()) :: non_neg_integer()
@@ -102,10 +102,10 @@ defmodule PClient do
       block == client.global_genesis_block -> true
       #block.epoch == -1 -> true
       #if length of the votes for of the client for block c are atleast n * 2/3: return true
-      MapSet.size(client.votes[block]) >= ((n * 2) / 3) -> true
+      MapSet.size(client.votes[block]) >= ((n * 2) / 3) ->
+        IO.puts("yay!")
+        true
       true ->
-        IO.puts("Yay!")
-        IO.puts("#{inspect(MapSet.size(client.votes[block]))}")
       false
     end
   end
@@ -250,7 +250,7 @@ defmodule PClient do
     else
       msg = hd(msg_in)
       if pMsgProposal?(msg) do
-        IO.puts("MsgProposal: #{inspect(msg)}")
+        #IO.puts("MsgProposal!")
         #update leafs
         updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
         updated_leafs = MapSet.put(updated_leafs, msg.block)
@@ -258,8 +258,9 @@ defmodule PClient do
         client = %{client | votes: Map.put(client.votes, msg.block, MapSet.new())}
         #update current_epoch_proposal
         client =
-          if msg.block.epoch ==  PBlock.epoch(t, bft_delay) and client.current_proposal == nil do
-            %{client | current_proposal: msg.block}
+          if msg.block.epoch ==  PBlock.epoch(t, bft_delay) and client.current_epoch_proposal == nil do
+            IO.puts("set current_epoch_proposal")
+            %{client | current_epoch_proposal: msg.block}
           else
             client
           end
@@ -277,9 +278,10 @@ defmodule PClient do
     else
       msg = hd(msgs_in)
       if pMsgVote?(msg) do
-        IO.puts("MsgVote: #{inspect(msg)}")
+       #IO.puts("MsgVote!")
         updated_votes = Map.put(client.votes, msg.block, msg.id)
         client = %{client | votes: updated_votes}
+        IO.puts(client.votes[msg.block])
         slot_vote_helper(client, tl(msgs_in))
       else
         slot_vote_helper(client, tl(msgs_in))
@@ -300,14 +302,14 @@ defmodule PClient do
       if PBlock.leader(t, n, bft_delay) == client.id do
         new_pblock = PBlock.new(tip(client, n), PBlock.epoch(t, bft_delay), DAClient.confirmedtip(client.client_da, k))
         msgs_out ++ [PMsgProposal.new(t, client.id, new_pblock)]
-        #IO.puts(#{})
       else
         msgs_out
       end
       {client, msgs_out}
     else
       msgs_out =
-      if  rem(t, (2 * bft_delay)) == bft_delay and client.current_epoch_proposal != nil do
+      if rem(t, (2 * bft_delay)) == bft_delay and client.current_epoch_proposal != nil do
+        IO.puts("Create Vote!")
         msgs_out ++ [PMsgVote.new(t, client.id, client.current_epoch_proposal)]
       else
         msgs_out
