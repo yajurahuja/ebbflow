@@ -227,25 +227,23 @@ defmodule PClient do
       client
     else
       msg = hd(msg_in)
-      client =
-        if msg == %PMsgProposal{} do
-          #update leafs
-          updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
-          updated_leafs = MapSet.put(updated_leafs, msg.block)
-          client = %{client | leafs: updated_leafs}
-          client = %{client | votes: Map.put(client.votes, msg.block, MapSet.new())}
-          #update current_epoch_proposal
-          client =
-            if msg.block.epoch ==  PBlock.epoch(t, bft_delay) and client.current_proposal == nil do
-              %{client | current_proposal: msg.block}
-            else
-              client
-            end
-          slot_helper(client, t, tl(msg_in), bft_delay)
-        else
-          slot_helper(client, t, tl(msg_in), bft_delay)
-        end
-      client
+      if msg == %PMsgProposal{} do
+        #update leafs
+        updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
+        updated_leafs = MapSet.put(updated_leafs, msg.block)
+        client = %{client | leafs: updated_leafs}
+        client = %{client | votes: Map.put(client.votes, msg.block, MapSet.new())}
+        #update current_epoch_proposal
+        client =
+          if msg.block.epoch ==  PBlock.epoch(t, bft_delay) and client.current_proposal == nil do
+            %{client | current_proposal: msg.block}
+          else
+            client
+          end
+        slot_helper(client, t, tl(msg_in), bft_delay)
+      else
+        slot_helper(client, t, tl(msg_in), bft_delay)
+      end
     end
   end
 
