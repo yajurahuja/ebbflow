@@ -65,17 +65,9 @@ defmodule HonestValidator do
       []))
   end
 
-  @spec lda(%HonestValidator{}, non_neg_integer(), non_neg_integer(), boolean()) :: list(String.t())
-  def lda(validator, n, k, print) do
-    if print do
-      # IO.puts(inspect(lp(validator, n)))
-      # IO.puts(inspect(DAClient.ledger(validator.client_da, k)))
-    end
-    c = Validator.sanitize(lp(validator, n) ++ DAClient.ledger(validator.client_da, k))
-    if print do
-      # IO.puts(inspect(c))
-    end
-    c
+  @spec lda(%HonestValidator{}, non_neg_integer(), non_neg_integer()) :: list(String.t())
+  def lda(validator, n, k) do
+    Validator.sanitize(lp(validator, n) ++ DAClient.ledger(validator.client_da, k))
   end
 end
 
