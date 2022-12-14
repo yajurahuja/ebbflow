@@ -96,4 +96,30 @@ defmodule NPSimulation do
   def ispartitioned(config, t) do
     elem(getpartition(config, t), 0)
   end
+
+  @spec logTPartition(%NPSimulation{}, non_neg_integer()) :: list(any())
+  def logTPartition(config, t) do
+    config.tPartitions
+    |> Enum.with_index
+    |> Enum.each(fn({{tPartStart, tPartEnd}, i}) ->
+      case t do
+      tPartStart ->
+        IO.puts("# t=#{t}: start of partition #{i}")
+      tPartStart ->
+        IO.puts("# t=#{t}: end of partition #{i}")
+      end
+    end
+    )
+  end
+
+  @spec runSimulation(%NPSimulation{}, non_neg_integer()) :: %NPSimulation{}
+	def runSimulation(config, t) do
+    cond do
+			t == config.tEnd -> config
+      true ->
+        logTPartition(config, t)
+
+        
+    end
+  end
 end
