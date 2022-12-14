@@ -178,6 +178,9 @@ defmodule NPSimulation do
           HonestValidator.slot(v, t, msgs_out_A, msgs_in_A, config)
         end
 
+        ## CHAITANYA: v is in an integer, it needs to be a validator object
+        ## Also, Honest validator updates the validator object, and returns
+        ## msgs_out_B
         for v <- config.validatorsB do
           # TODO: slot!(v, t, msgs_out_B, msgs_in_B)
           HonestValidator.slot(v, t, msgs_out_B, msgs_in_B, config)
