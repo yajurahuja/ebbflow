@@ -9,13 +9,15 @@ defmodule SleepyTest do
   end
 
   test "new DAClient" do
-    client = DAClient.new(2)
+    genesisDA = DABlock.genesis()
+    client = DAClient.new(2, genesisDA)
     assert client.id == 2
     assert MersenneTwister.nextUniform(client.rng_mining)|> elem(0) == 0.5847323557827622
   end
 
   defp dummy_client() do
-    client = DAClient.new(2)
+    genesisDA = DABlock.genesis()
+    client = DAClient.new(2, genesisDA)
 
     # Dummy DABlocks
     block1 = DABlock.new(hd(MapSet.to_list(client.leafs)), "block1")
@@ -59,9 +61,10 @@ defmodule SleepyTest do
   end
 
   test "slot! - genesis client" do
-    client = DAClient.new(2)
-    slot = MapSet.to_list(DAMsgNewBlock.slot!(
-      client, 2, MapSet.new(), MapSet.new(), :honest, 0.7))
+    genesisDA = DABlock.genesis()
+    client = DAClient.new(2, genesisDA)
+    {_, slot} = DAMsgNewBlock.slot!(client, 2, [], [], :honest, 0.7)
+    IO.puts(length(slot))
     assert length(slot) == 1
     assert hd(slot).id == 2
     assert hd(slot).t == 2
@@ -71,8 +74,8 @@ defmodule SleepyTest do
 
   test "slot! - dummy client" do
     client = dummy_client()
-    slot = MapSet.to_list(DAMsgNewBlock.slot!(
-      client, 2, MapSet.new(), MapSet.new(), :honest, 0.7))
+    {_, slot} = DAMsgNewBlock.slot!(client, 2, [], [], :honest, 0.7)
+    IO.puts(length(slot))
     assert length(slot) == 1
     assert hd(slot).id == 2
     assert hd(slot).t == 2

@@ -115,14 +115,14 @@ defmodule DAMsgNewBlock do
     {nextRand, newRng} = MersenneTwister.nextUniform(client.rng_mining)
     client = %{client | rng_mining: newRng}
 
-    msgs_out = 
+    msgs_out =
       if nextRand <= prob_pos_mining_success_per_slot do
         if role == :honest do
           new_dablock = DABlock.new(DAClient.tip(client), "t=#{t},id=#{client.id}")
-          MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
+          msgs_out ++ [DAMsgNewBlock.new(t, client.id, new_dablock)]
         else
           new_dablock = DABlock.new(DAClient.tip(client), "adversarial:t=#{t},id=#{client.id}")
-          MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
+          msgs_out ++ [DAMsgNewBlock.new(t, client.id, new_dablock)]
         end
       else
         msgs_out
