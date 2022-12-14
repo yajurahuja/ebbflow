@@ -102,8 +102,8 @@ defmodule PClient do
       block == client.global_genesis_block -> true
       #block.epoch == -1 -> true
       #if length of the votes for of the client for block c are atleast n * 2/3: return true
-      MapSet.size(client.votes[block]) >= ((n * 2) / 3) ->
-        IO.puts("yay!")
+      MapSet.size(Map.get(client.votes, block, MapSet.new())) >= ((n * 2) / 3) ->
+        # IO.puts("yay!")
         true
       true ->
       false
