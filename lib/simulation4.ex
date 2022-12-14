@@ -120,18 +120,24 @@ defmodule OverviewSimulation do
 		%{config | livenessPhase: config.livenessPhase ++ [phase]}
 	end
 
+	@spec getRandomList(list(), float()) :: any()
+	def getRandomList(l, fl) do
+		ind = trunc(fl*length(l))
+		Enum.at(l, ind)
+	end
+
 	# Puts an honest validator to sleep, or wakes it up, or does nothing.
 	@spec daTick(%OverviewSimulation{}) :: %OverviewSimulation{}
 	def daTick(config) do
-		# :rand.seed(config.rngDa) 
-		# TODO seed
+		{nextRand, newRng} = MersenneTwister.nextUniform(config.rngDa)
+		config = %{config | rngDa: newRng}
 		dir = 
 			cond do
-				length(config.validatorsAwake) == 60 -> random([:toawake, :nothing])
-				length(config.validatorsAwake) == (config.n-config.f) -> random([:nothing, :toasleep])
+				length(config.validatorsAwake) == 60 -> getRandomList([:toawake, :nothing], nextRand)
+				length(config.validatorsAwake) == (config.n-config.f) -> getRandomList([:nothing, :toasleep], nextRand)
 				true -> 
 					# IO.puts(inspect(config))
-					random([:toawake, :toasleep])
+					getRandomList([:toawake, :toasleep], nextRand)
 			end
 
 		cond do
@@ -363,11 +369,11 @@ defmodule OverviewSimulation do
 
 				msgsHonest = msgsOutPart1 ++ msgsOutPart2
 
+				# IO.puts(inspect(msgsHonest))
+
 				{config, msgsOutPrivateAdversarial, msgsOutRushHonest} = 
 					slotAdversarialMessages(config, config.validatorsAdversarial, t, [], [], 
 						msgsHonest, msgsInAll)
-
-				# config = %{config | msgsInflight: getInflightMessages(config, t+1)}
 
 				config = prependInflightMessages(config, config.validatorsHonest, 
 					t+1, msgsOutRushHonest)
