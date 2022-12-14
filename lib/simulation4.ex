@@ -205,7 +205,7 @@ defmodule OverviewSimulation do
 						{config, msgsOutPart1, msgsOutPart2}
 					else
 						config = %{config | msgsMissed: Map.replace(config.msgsMissed,
-									validatorId, config.msgsMissed[validatorId] ++ msgsIn)}
+									validatorId, getMissedMessages(config, validatorId) ++ msgsIn)}
 						{config, msgsOutPart1, msgsOutPart2}
 					end
 				slotHonestMsgs(config, t, tail, msgsInAll, msgsOutPart1, msgsOutPart2)
@@ -244,7 +244,7 @@ defmodule OverviewSimulation do
 		non_neg_integer(), list(Validator.msg())) :: %OverviewSimulation{}
 	def prependInflightMessagesValidator(config, t, validatorId, newMessages) do
 		tMessages = getInflightMessages(config, t)
-		validatorMessages = [newMessages | tMessages[validatorId]]
+		validatorMessages = newMessages ++ tMessages[validatorId]
 
 		modifyInflightMessages(config, t, Map.put(tMessages, validatorId, validatorMessages))
 	end
@@ -284,10 +284,12 @@ defmodule OverviewSimulation do
 				[] -> {config, msgsOutPrivateAdversarial, msgsOutRushHonest}
 				[validatorId | tail] ->
 					msgsIn = Map.get(msgsInAll, validatorId, [])
+
 					{validator, msgsOutPrivateAdversarial, msgsOutRushHonest} =
 						AdversarialValidator.slot(at(config.validators, validatorId),
 							config.n, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsIn,
 							msgsHonest, (config.lambda/config.n)/config.second)
+						
 					config = replaceValidator(config, validatorId, validator)
 					slotAdversarialMessages(config, tail, t, msgsOutPrivateAdversarial,
 						msgsOutRushHonest, msgsHonest, msgsInAll)
@@ -346,7 +348,7 @@ defmodule OverviewSimulation do
 				msgsInAll = getInflightMessages(config, t)
 
 				{config, msgsOutPart1, msgsOutPart2} = slotHonestMsgs(config, t,
-					config.validatorsAwake, msgsInAll, [], [])
+					config.validatorsHonest, msgsInAll, [], [])
 
 				{tDeliverInter, tDeliverIntra} =
 					if config.tPartStart <= t and t < config.tPartStop do
