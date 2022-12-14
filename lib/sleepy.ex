@@ -89,12 +89,12 @@ defmodule DAMsgNewBlock do
   end
 
   @spec daMsgNewBlock?(%DAMsgNewBlock{}) :: boolean()
-  defp daMsgNewBlock?(%DAMsgNewBlock{}) do
+  def daMsgNewBlock?(%DAMsgNewBlock{}) do
     true
   end
 
   @spec daMsgNewBlock?(any()) :: boolean()
-  defp daMsgNewBlock?(_) do
+  def daMsgNewBlock?(_) do
     false
   end
 

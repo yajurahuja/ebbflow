@@ -96,7 +96,7 @@ defmodule AdversarialValidator do
     case msgs do
       [] -> maxVal
       [head | tail] ->
-        if DAMsgNewBlock.dAMsgNewBlock?(head) do
+        if DAMsgNewBlock.daMsgNewBlock?(head) do
           findMaxBlockDepth(tail, Enum.max([maxVal, Utilities.depth(head.block)]))
         else
           findMaxBlockDepth(tail, maxVal)
@@ -122,13 +122,13 @@ defmodule AdversarialValidator do
 
     validator = %{validator | client_da: client_da}
 
-    if validator.id == n do
+    if validator.id == (n-1) do
       d = findMaxBlockDepth(msgs_in_rush_honest, -1)
 
       if d > -1 do
         blk = DAClient.tip(validator.client_da)
 
-        if Utilities.depth(d) < d do
+        if Utilities.depth(blk) < d do
           {validator, msgs_out_private_adversarial, msgs_out_rush_honest}
         else
           blk = dDepthParent(blk, d, blk)
