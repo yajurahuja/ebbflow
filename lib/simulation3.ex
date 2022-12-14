@@ -36,9 +36,6 @@ defmodule DPSimulation do
 		validatorsAwake: nil,
 		validatorsAsleep: nil,
 
-		validatorsPart1: nil,
-		validatorsPart2: nil,
-
 		msgsInflight: nil,
 		msgsMissed: nil,
 
@@ -52,13 +49,16 @@ defmodule DPSimulation do
 		genesisDA = DABlock.genesis()
 		genesisP = PBlock.genesis(genesisDA)
 		validators =
-			for id <- 1..n do
-				if id<= (n-f) do
+			for id <- 0..(n-1) do
+				if id <= (n-f-1) do
 					HonestValidator.new(id, genesisDA, genesisP)
 				else
 					AdversarialValidator.new(id, genesisDA, genesisP)
 				end
 			end
+		IO.puts("awake: #{div(4 * (n-f), 5)}")
+		IO.puts("asleep: #{inspect((div(4 * (n-f), 5)))}, #{inspect(n-f-1)}")
+		IO.puts("t l_Lp l_Lda l_awake l_asleep")
 		%DPSimulation{
 			n: n,
 			f: f,
@@ -67,14 +67,11 @@ defmodule DPSimulation do
 
 			validators: validators,
 
-			validatorsHonest: for id <- 1..(n-f) do id end,
-			validatorsAdversarial: for id <- (n-f+1)..n do id end,
+			validatorsHonest: for id <- 0..(n-f-1) do id end,
+			validatorsAdversarial: for id <- (n-f)..(n-1) do id end,
 
-			validatorsAwake: for id <- 1..(n-f) do id end,
-			validatorsAsleep: [],
-
-			validatorsPart1: for id <- 1..div((n-f), 2) do id end,
-			validatorsPart2: for id <- (div((n-f), 2)+1)..(n-f) do id end,
+			validatorsAwake: for id <- 0..(div(4 * (n-f), 5)) do id end,
+			validatorsAsleep: for id <- ((div(4 * (n-f), 5)) + 1)..(n-f-1) do id end,
 
 			msgsInflight: Map.new(),
 			msgsMissed: Map.new(for v <- validators do {v.id, []} end),
@@ -187,21 +184,21 @@ defmodule DPSimulation do
 			t == config.tEnd + 1 -> config
 			true ->
 				config = daTick(config)
-
 				config = %{config | msgsInflight: Map.put(config.msgsInflight, t + config.delta, [])}
 				msgs_out = Map.get(config.msgsInflight, t + config.delta, [])
 				msgs_in = Map.get(config.msgsInflight, t, [])
-
-				config = missed_messages(config, msgs_out, msgs_in, 1, t) #v_id iterates from 1..n
+				IO.puts("msgs_out: #{inspect(msgs_out)} ")
+				IO.puts("msgs_in: #{inspect(msgs_in)} ")
+				config = missed_messages(config, msgs_out, msgs_in, 0, t) #v_id iterates from 1..n
 
 				{l_LP, l_LDA} =
 					if rem(t, 15) == 0 do
 						#l_LP = Enum.min(Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lp(at(config.validators, x - 1), config.n)) - 1 end))
 						#l_LDA = Enum.min(Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lda(at(config.validators, x - 1), config.n, config.k)) - 1 end))
-						l_LP = Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lp(at(config.validators, x - 1), config.n)) - 1 end)
-						l_LDA = Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lda(at(config.validators, x - 1), config.n, config.k)) - 1 end)
+						l_LP = Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lp(at(config.validators, x), config.n)) - 1 end)
+						l_LDA = Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lda(at(config.validators, x), config.n, config.k)) - 1 end)
 						#TODO: print the l_LP, l_LDA
-						IO.puts("#{inspect(t)} #{inspect(l_LP)} #{inspect(l_LDA)} #{inspect(length(config.validatorsAwake))} #{inspect(length(config.validatorsAsleep))}")
+						#IO.puts("#{inspect(t)} #{inspect(l_LP)} #{inspect(l_LDA)} #{inspect(length(config.validatorsAwake))} #{inspect(length(config.validatorsAsleep))}")
 						{l_LP, l_LDA}
 					else
 						{nil, nil}
