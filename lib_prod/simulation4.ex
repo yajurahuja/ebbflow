@@ -344,10 +344,10 @@ defmodule OverviewSimulation do
 
 				config = modifyInflightMessages(config, tDeliverInter, 
 					Map.get(config.msgsInflight, tDeliverInter, 
-						(Map.new(for v <- 0..(config.n-1) do {v.id, []} end))))
+						(Map.new(for v <- 0..(config.n-1) do {v, []} end))))
 				config = modifyInflightMessages(config, tDeliverIntra, 
 					Map.get(config.msgsInflight, tDeliverIntra, 
-						(Map.new(for v <- 0..(config.n-1) do {v.id, []} end))))
+						(Map.new(for v <- 0..(config.n-1) do {v, []} end))))
 
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverInter, msgsOutPart2)
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverIntra, msgsOutPart1)

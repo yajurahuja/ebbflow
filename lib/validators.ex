@@ -56,16 +56,16 @@ defmodule HonestValidator do
     {%{validator | client_da: client_da, client_p: client_p}, msgs_out}
   end
 
-  @spec lp(%HonestValidator{}) :: list(String.t())
-  def lp(validator) do
+  @spec lp(%HonestValidator{}, non_neg_integer()) :: list(String.t())
+  def lp(validator, n) do
     Validator.sanitize(Validator.flattenList(
-      Enum.map(validator.client_p, fn x -> Utilities.ledger(x) end), 
+      Enum.map(PClient.ledger(validator.client_p, n), fn x -> Utilities.ledger(x) end), 
       []))
   end
 
-  @spec lda(%HonestValidator{}) :: list(String.t())
-  def lda(validator) do
-    Validator.sanitize(lp(validator) ++ Utilities.ledger(validator.client_da))
+  @spec lda(%HonestValidator{}, non_neg_integer()) :: list(String.t())
+  def lda(validator, n) do
+    Validator.sanitize(lp(validator, n) ++ Utilities.ledger(validator.client_da))
   end
 end
 
@@ -107,7 +107,7 @@ defmodule AdversarialValidator do
       :: {%AdversarialValidator{}, list(Validator.msg()), 
         list(Validator.msg())}
   def slot(validator, n, t, msgs_out_private_adversarial, msgs_out_rush_honest, msgs_in, msgs_in_rush_honest, prob_pos_mining_success_per_slot) do
-    {client_da, msgs_out_private_adversarial} = DAMsgNewBlock.slot!(validator, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial, prob_pos_mining_success_per_slot)
+    {client_da, msgs_out_private_adversarial} = DAMsgNewBlock.slot!(validator.client_da, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial, prob_pos_mining_success_per_slot)
 
     validator = %{validator | client_da: client_da}
 

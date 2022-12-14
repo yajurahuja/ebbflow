@@ -206,33 +206,36 @@ defmodule OverviewSimulation do
 		end
 	end
 
+	@spec getInflightMessages(%OverviewSimulation{}, non_neg_integer()) :: %{validator() => list(Validator.msg())}
+	def getInflightMessages(config, t) do
+		Map.get(config.msgsInflight, t, Map.new(for v <- 0..(config.n-1) do {v, []} end))
+	end
+
 	# Put new value in msgsInflight[t]
 	@spec modifyInflightMessages(%OverviewSimulation{}, non_neg_integer(), 
 		validator()) :: %OverviewSimulation{}
 	def modifyInflightMessages(config, t, value) do
-		%{config | msgsInflight: Map.put(config.msgsInflight, t, value) }
+		%{config | msgsInflight:  Map.put(config.msgsInflight, t, value)}
 	end
 
 	# Append newMessages for msgsInflight[t][validator]
 	@spec appendInflightMessagesValidator(%OverviewSimulation{}, non_neg_integer(), 
 		non_neg_integer(), list(Validator.msg())) :: %OverviewSimulation{}
 	def appendInflightMessagesValidator(config, t, validatorId, newMessages) do
-		tMessages = config.msgsInflight[t]
+		tMessages = getInflightMessages(config, t)
 		validatorMessages = tMessages[validatorId] ++ newMessages
 
-		%{config | msgsInflight: modifyInflightMessages(config, t, 
-			Map.put(tMessages, validatorId, validatorMessages))}
+		modifyInflightMessages(config, t, Map.put(tMessages, validatorId, validatorMessages))
 	end
 
 	# Prepend newMessages for msgsInflight[t][validator]
 	@spec prependInflightMessagesValidator(%OverviewSimulation{}, non_neg_integer(),
 		non_neg_integer(), list(Validator.msg())) :: %OverviewSimulation{}
 	def prependInflightMessagesValidator(config, t, validatorId, newMessages) do
-		tMessages = config.msgsInflight[t]
-		validatorMessages = newMessages ++ tMessages[validatorId]
+		tMessages = getInflightMessages(config, t)
+		validatorMessages = [newMessages | tMessages[validatorId]]
 
-		%{config | msgsInflight: modifyInflightMessages(config, t, 
-			Map.put(tMessages, validatorId, validatorMessages))}
+		modifyInflightMessages(config, t, Map.put(tMessages, validatorId, validatorMessages))
 	end
 
 	# Append msgs for all validators msgsInflight[t]
@@ -269,9 +272,9 @@ defmodule OverviewSimulation do
 			case validatorIds do
 				[] -> {config, msgsOutPrivateAdversarial, msgsOutRushHonest}
 				[validatorId | tail] ->
-					msgsIn = Map.get(config.msgsInAll, validatorId, [])
+					msgsIn = Map.get(msgsInAll, validatorId, [])
 					{validator, msgsOutPrivateAdversarial, msgsOutRushHonest} = 
-						AdversarialValidator.slot(at(config.validator, validatorId), 
+						AdversarialValidator.slot(at(config.validators, validatorId), 
 							config.n, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsIn, 
 							msgsHonest, (config.lambda/config.n)/config.second)
 					config = replaceValidator(config, validatorId, validator)
@@ -284,10 +287,10 @@ defmodule OverviewSimulation do
 		validatorsAwakePart1 = MapSet.intersection(MapSet.new(config.validatorsAwake), MapSet.new(config.validatorsPart1))
 		validatorsAwakePart2 = MapSet.intersection(MapSet.new(config.validatorsAwake), MapSet.new(config.validatorsPart2))
 		
-		l_Lp_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lp(x))-1 end))
-		l_Lp_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lp(x))-1 end))
-		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lda(x))-1 end))
-		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lda(x))-1 end))
+		l_Lp_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lp(at(config.validators, x), config.n))-1 end))
+		l_Lp_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lp(at(config.validators, x), config.n))-1 end))
+		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n))-1 end))
+		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n))-1 end))
 
 		l_Lp = Enum.min(l_Lp_1, l_Lp_2)
 		l_Lda = Enum.min(l_Lda_1, l_Lda_2)
@@ -330,7 +333,7 @@ defmodule OverviewSimulation do
 						config
 					end
 
-				msgsInAll = Map.get(config.msgsInflight, t, Map.new())
+				msgsInAll = getInflightMessages(config, t)
 
 				{config, msgsOutPart1, msgsOutPart2} = slotHonestMsgs(config, t,
 					config.validatorsAwake, msgsInAll, [], [])
@@ -343,11 +346,9 @@ defmodule OverviewSimulation do
 					end
 
 				config = modifyInflightMessages(config, tDeliverInter, 
-					Map.get(config.msgsInflight, tDeliverInter, 
-						(Map.new(for v <- 0..(config.n-1) do {v.id, []} end))))
+					getInflightMessages(config, tDeliverInter))
 				config = modifyInflightMessages(config, tDeliverIntra, 
-					Map.get(config.msgsInflight, tDeliverIntra, 
-						(Map.new(for v <- 0..(config.n-1) do {v.id, []} end))))
+					getInflightMessages(config, tDeliverIntra))
 
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverInter, msgsOutPart2)
 				config = appendInflightMessages(config, config.validatorsPart1, tDeliverIntra, msgsOutPart1)
@@ -361,16 +362,15 @@ defmodule OverviewSimulation do
 					slotAdversarialMessages(config, config.validatorsAdversarial, t, [], [], 
 						msgsHonest, msgsInAll)
 
-				config = %{config | msgsInflight: Map.get(config.msgsInflight, t+1, 
-					Map.new(for v <- config.validators do {v.id, []} end))}
+				# config = %{config | msgsInflight: getInflightMessages(config, t+1)}
 
-				config = prependInflightMessages(config.msgsInflight, 
-					config.validatorsHonest, t+1, msgsOutRushHonest)
+				config = prependInflightMessages(config, config.validatorsHonest, 
+					t+1, msgsOutRushHonest)
 
-				config = appendInflightMessages(config.msgsInflight, 
-					config.validatorsAdversarial, t+1, msgsOutPrivateAdversarial)
-				config = appendInflightMessages(config.msgsInflight, 
-					config.validatorsAdversarial, t+1, msgsOutRushHonest)
+				config = appendInflightMessages(config, config.validatorsAdversarial, 
+					t+1, msgsOutPrivateAdversarial)
+				config = appendInflightMessages(config, config.validatorsAdversarial, 
+					t+1, msgsOutRushHonest)
 
 				if rem(t, 15*config.second) == 0 do
 					log_ledger_lengths(config, t)

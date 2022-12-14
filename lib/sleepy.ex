@@ -98,7 +98,7 @@ defmodule DAMsgNewBlock do
     false
   end
 
-  @spec slot!(%DABlock{}, non_neg_integer(), list(), list(), any(), any()) :: {%DAClient{}, list()}
+  @spec slot!(%DAClient{}, non_neg_integer(), list(), list(), any(), any()) :: {%DAClient{}, list()}
   def slot!(client, t, msgs_out, msgs_in, role, prob_pos_mining_success_per_slot) do
     daMsgs = Enum.filter(msgs_in, fn x -> daMsgNewBlock?(x) end)
     diff = daMsgs
@@ -121,8 +121,9 @@ defmodule DAMsgNewBlock do
           new_dablock = DABlock.new(DAClient.tip(client), "adversarial:t=#{t},id=#{client.id}")
           MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
         end
+      else
+        msgs_out
       end
-
     {client, msgs_out}
   end
 
