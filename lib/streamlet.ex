@@ -207,7 +207,7 @@ defmodule PClient do
     else
       head = hd(leafs)
       tail = tl(leafs)
-      out = Mapset.union(MapSet.new(Utilities.chain(head), out))
+      out = Mapset.union(MapSet.new(Utilities.chain(head)), out)
       allblocks_helper(tail, out)
     end
   end
