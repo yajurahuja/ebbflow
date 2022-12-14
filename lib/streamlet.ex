@@ -99,9 +99,10 @@ defmodule PClient do
   def isnotarized(client, block, n) do
     cond do
       #if the current block is the genesis block: return true
-      block == client.global_genesis_block -> true
+      #block == client.global_genesis_block -> true
+      block.epoch == -1 -> true
       #if length of the votes for of the client for block c are atleast n * 2/3: return true
-      MapSet.size(client.votes) >= ((n * 2) / 3) -> true
+      MapSet.size(client.votes[block]) >= ((n * 2) / 3) -> true
       true -> false
     end
   end
@@ -299,7 +300,7 @@ defmodule PClient do
       {client, msgs_out}
     else
       msgs_out =
-      if  rem(t, (2 * bft_delay)) == bft_delay and client.current_epoch_proposal != 0 do
+      if  rem(t, (2 * bft_delay)) == bft_delay and client.current_epoch_proposal != nil do
         msgs_out ++ [PMsgVote.new(t, client.id, client.current_epoch_proposal)]
       else
         msgs_out
