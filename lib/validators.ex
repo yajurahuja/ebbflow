@@ -52,7 +52,8 @@ defmodule HonestValidator do
   @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg()), Validator.config()) :: {%HonestValidator{}, list(Validator.msg())}
   def slot(validator, t, msgs_out, msgs_in, config) do
     {client_da, msgs_out} = DAMsgNewBlock.slot!(validator.client_da, t, msgs_out, msgs_in, :honest, (config.lambda/config.n)/config.second)
-    {client_p, msgs_out} = PClient.slot!(validator.client_p, t, msgs_out, msgs_in, config.deltaBft, config.n, config.k)
+    client_p = %{validator.client_p | client_da: client_da}
+    {client_p, msgs_out} = PClient.slot!(client_p, t, msgs_out, msgs_in, config.deltaBft, config.n, config.k)
 
     {%{validator | client_da: client_da, client_p: client_p}, msgs_out}
   end
@@ -95,10 +96,19 @@ defmodule AdversarialValidator do
     case msgs do
       [] -> maxVal
       [head | tail] ->
-        case head do
-          %DAMsgNewBlock{} -> findMaxBlockDepth(tail, Enum.max(maxVal, Utilities.depth(head.block)))
-          _ -> findMaxBlockDepth(tail, maxVal)
+        if DAMsgNewBlock.dAMsgNewBlock?(head) do
+          findMaxBlockDepth(tail, Enum.max([maxVal, Utilities.depth(head.block)]))
+        else
+          findMaxBlockDepth(tail, maxVal)
         end
+    end
+  end
+
+  def dDepthParent(block, d, ret) do
+    if Utilities.depth(block) <= d do
+      ret
+    else
+      dDepthParent(block.parent, d, block)
     end
   end
 
@@ -121,6 +131,7 @@ defmodule AdversarialValidator do
         if Utilities.depth(d) < d do
           {validator, msgs_out_private_adversarial, msgs_out_rush_honest}
         else
+          blk = dDepthParent(blk, d, blk)
           {validator, msgs_out_private_adversarial, msgs_out_rush_honest ++ [DAMsgNewBlock.new(t, validator.client_da.id, blk)]}
         end
       else
