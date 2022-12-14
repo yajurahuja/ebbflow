@@ -96,12 +96,12 @@ defmodule DPSimulation do
 
 	@spec popAwake(%DPSimulation{}) :: %DPSimulation{}
 	def popAwake(config) do
-		%{config | validatorsAwake: List.tail(config.validatorsAwake)}
+		%{config | validatorsAwake: tl(config.validatorsAwake)}
 	end
 
 	@spec popAsleep(%DPSimulation{}) :: %DPSimulation{}
 	def popAsleep(config) do
-		%{config | validatorsAsleep: List.tail(config.validatorsAsleep)}
+		%{config | validatorsAsleep: tl(config.validatorsAsleep)}
 	end
 
 	@spec pushAwake(%DPSimulation{}, non_neg_integer())
@@ -127,7 +127,6 @@ defmodule DPSimulation do
 	def daTick(config) do
 		# :rand.seed(config.rngDa)
 		# TODO seed
-		IO.puts(inspect(length(config.validatorsAwake)))
 		dir =
 			cond do
 				length(config.validatorsAwake) == (2 * config.f) + 1 -> Enum.random([:toawake, :nothing])
@@ -148,8 +147,9 @@ defmodule DPSimulation do
 		end
 	end
 
-	#Replaces validator object having given id.
-	@spec replaceValidator(%DPSimulation{}, non_neg_integer(), validator()) :: %DPSimulation{}
+	# Replaces validator object having given id.
+	@spec replaceValidator(%DPSimulation{}, non_neg_integer(), validator())
+		:: %DPSimulation{}
 	def replaceValidator(config, validatorId, newValidator) do
 		%{config | validators:
 			map(config.validators,
@@ -163,18 +163,20 @@ defmodule DPSimulation do
 	end
 
 
-	def missed_messages(config, msgs_out, v_id) do
+	def missed_messages(config, msgs_out, msgs_in, v_id, t) do
 		cond do
 			v_id == length(config.validators) -> config
 			Utilities.checkMembership(v_id, config.validatorsAwake) ->
 				validator = Enum.at(Enum.filter(config.validators, fn x -> x.id == v_id end), 0)
-				#TODO: fix the slot function
-				config = %{config | msgs_missed: Map.put(config.msgs_missed, v_id, [])}
-				missed_messages(config, msgs_out, v_id + 1)
+				{validator, msgs_out} = HonestValidator.slot(validator, t, msgs_out, config.msgsMissed[v_id] ++ msgs_in, config)
+				config = replaceValidator(config, v_id, validator)
+				updated_msgs_missed = Map.put(config.msgsMissed, v_id, [])
+				config = %{config | msgsMissed: updated_msgs_missed}
+				missed_messages(config, msgs_out, msgs_in, v_id + 1, t)
 			true ->
-				updated_msgs_missed = Map.put(config.msgs_missed, v_id, config.msgs_missed[v_id] ++ config.msgs_in)
-				config = %{config | msgs_missed: updated_msgs_missed}
-				missed_messages(config, msgs_out, v_id + 1)
+				updated_msgs_missed = Map.put(config.msgsMissed, v_id, config.msgsMissed[v_id] ++ msgs_in)
+				config = %{config | msgsMissed: updated_msgs_missed}
+				missed_messages(config, msgs_out, msgs_in, v_id + 1, t)
 		end
 	end
 
@@ -190,13 +192,16 @@ defmodule DPSimulation do
 				msgs_out = Map.get(config.msgsInflight, t + config.delta, [])
 				msgs_in = Map.get(config.msgsInflight, t, [])
 
-				config = missed_messages(config, msgs_out, 1) #v_id iterates from 1..n
+				config = missed_messages(config, msgs_out, msgs_in, 1, t) #v_id iterates from 1..n
 
 				{l_LP, l_LDA} =
 					if rem(t, 15) == 0 do
-						l_LP = Enum.min(Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lp(x)) - 1 end))
-						l_LDA = Enum.min(Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lda(x)) - 1 end))
+						#l_LP = Enum.min(Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lp(at(config.validators, x - 1), config.n)) - 1 end))
+						#l_LDA = Enum.min(Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lda(at(config.validators, x - 1), config.n, config.k)) - 1 end))
+						l_LP = Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lp(at(config.validators, x - 1), config.n)) - 1 end)
+						l_LDA = Enum.map(config.validatorsAwake, fn x -> length(HonestValidator.lda(at(config.validators, x - 1), config.n, config.k)) - 1 end)
 						#TODO: print the l_LP, l_LDA
+						IO.puts("#{inspect(t)} #{inspect(l_LP)} #{inspect(l_LDA)} #{inspect(length(config.validatorsAwake))} #{inspect(length(config.validatorsAsleep))}")
 						{l_LP, l_LDA}
 					else
 						{nil, nil}
