@@ -50,7 +50,7 @@ defmodule OverviewSimulation do
 
 	)
 
-	@spec new() :: %OverviewSimulation{}
+	@spec new(non_neg_integer(), non_neg_integer()) :: %OverviewSimulation{}
 	def new(n, f) do 
 		validators = 
 			for id <- 1..n do 
@@ -261,7 +261,7 @@ defmodule OverviewSimulation do
 	# Computes adversarial validator actions for this slot.
 	@spec slotAdversarialMessages(%OverviewSimulation{}, list(non_neg_integer()), 
 		non_neg_integer(), list(Validator.msg()), list(Validator.msg()), 
-		list(Validator.msg())) 
+		list(Validator.msg()), list(Validator.msg())) 
 			:: {%OverviewSimulation{}, list(Validator.msg()), list(Validator.msg())}
 	def slotAdversarialMessages(config, validatorIds, t, msgsOutPrivateAdversarial, 
 		msgsOutRushHonest, msgsHonest, msgsInAll) do

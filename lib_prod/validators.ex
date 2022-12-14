@@ -48,7 +48,7 @@ defmodule HonestValidator do
     }
   end
 
-  @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg())) :: {%HonestValidator{}, list(msg())}
+  @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg())) :: {%HonestValidator{}, list(Validator.msg())}
   def slot(validator, t, msgs_out, msgs_in) do
     {client_da, msgs_out} = DAClient.slot(validator.client_da, t, msgs_out, msgs_in, :honest)
     {client_p, msgs_out} = PClient.slot(validator.client_p, t, msgs_out, msgs_in)
@@ -83,12 +83,12 @@ defmodule AdversarialValidator do
     }
   end
 
-  @spec slot(%AdversarialValidator{}, non_neg_integer(), list(msg()), list(msg())) :: list(msg())
+  @spec slot(%AdversarialValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg())) :: list(Validator.msg())
   def slot(validator, t, msgs_out, msgs_in) do
     msgs_out
   end
 
-  @spec findMaxBlockDepth(list(msg()), non_neg_integer()) :: non_neg_integer()
+  @spec findMaxBlockDepth(list(Validator.msg()), non_neg_integer()) :: non_neg_integer()
   defp findMaxBlockDepth(msgs, maxVal) do
     case msgs do
       [] -> maxVal
@@ -100,7 +100,11 @@ defmodule AdversarialValidator do
     end
   end
 
-  @spec slot(%AdversarialValidator{}, non_neg_integer(), non_neg_integer(), list(msg()), list(msg()), list(msg()), list(msg())) :: {%AdversarialValidator{}, list(msg()), list(msg())}
+  @spec slot(%AdversarialValidator{}, non_neg_integer(), non_neg_integer(), 
+    list(Validator.msg()), list(Validator.msg()), list(Validator.msg()), 
+    list(Validator.msg())) 
+      :: {%AdversarialValidator{}, list(Validator.msg()), 
+        list(Validator.msg())}
   def slot(validator, n, t, msgs_out_private_adversarial, msgs_out_rush_honest, msgs_in, msgs_in_rush_honest) do
     {client_da, msgs_out_private_adversarial} = DAClient.slot(validator, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial)
 
