@@ -143,7 +143,11 @@ defmodule OverviewSimulation do
 		cond do
 			dir == :toawake ->
 				config = shuffleAsleep(config)
-				popAsleep(pushAwake(config, hd(config.validatorsAsleep)))
+				ind = hd(config.validatorsAsleep)
+				# IO.puts(inspect(ind))
+				# IO.puts("missed #{inspect(getMissedMessages(config, ind))}")
+				HonestValidator.lda(at(config.validators, ind), config.n, config.k, true)
+				popAsleep(pushAwake(config, ind))
 			dir == :toasleep ->
 				config = shuffleAwake(config)
 				popAwake(pushAsleep(config, hd(config.validatorsAwake)))
@@ -204,8 +208,11 @@ defmodule OverviewSimulation do
 						config = %{config | msgsMissed: Map.drop(config.msgsMissed, [validatorId])}
 						{config, msgsOutPart1, msgsOutPart2}
 					else
-						config = %{config | msgsMissed: Map.replace(config.msgsMissed,
-									validatorId, getMissedMessages(config, validatorId) ++ msgsIn)}
+						newMessagesMissed = getMissedMessages(config, validatorId) ++ msgsIn
+						config = %{config | msgsMissed: Map.put(config.msgsMissed,
+									validatorId, newMessagesMissed)}
+						# IO.puts("here here #{length(msgsIn)}")
+						# IO.puts("here #{inspect(getMissedMessages(config, validatorId))}")
 						{config, msgsOutPart1, msgsOutPart2}
 					end
 				slotHonestMsgs(config, t, tail, msgsInAll, msgsOutPart1, msgsOutPart2)
@@ -289,7 +296,7 @@ defmodule OverviewSimulation do
 						AdversarialValidator.slot(at(config.validators, validatorId),
 							config.n, t, msgsOutPrivateAdversarial, msgsOutRushHonest, msgsIn,
 							msgsHonest, (config.lambda/config.n)/config.second)
-						
+
 					config = replaceValidator(config, validatorId, validator)
 					slotAdversarialMessages(config, tail, t, msgsOutPrivateAdversarial,
 						msgsOutRushHonest, msgsHonest, msgsInAll)
@@ -302,8 +309,21 @@ defmodule OverviewSimulation do
 
 		l_Lp_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lp(at(config.validators, x), config.n))-1 end))
 		l_Lp_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lp(at(config.validators, x), config.n))-1 end))
-		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n, config.k))-1 end))
-		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n, config.k))-1 end))
+		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n, config.k, false))-1 end))
+		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n, config.k, false))-1 end))
+
+		try do
+			for x <- validatorsAwakePart1 do
+				lp1 = length(HonestValidator.lda(at(config.validators, x), config.n, config.k, false))-1
+				if lp1 == l_Lda_1 do
+					HonestValidator.lda(at(config.validators, x), config.n, config.k, true)
+					# IO.puts(x)				
+					throw(:break)
+				end
+			end
+		catch
+			:break -> :broken
+		end
 
 		l_Lp = Enum.min([l_Lp_1, l_Lp_2])
 		l_Lda = Enum.min([l_Lda_1, l_Lda_2])
@@ -352,7 +372,7 @@ defmodule OverviewSimulation do
 
 				{tDeliverInter, tDeliverIntra} =
 					if config.tPartStart <= t and t < config.tPartStop do
-						{Enum.max(t+config.delta, config.tPartStop), t+config.delta}
+						{Enum.max([t+config.delta, config.tPartStop]), t+config.delta}
 					else
 						{t+config.delta, t+config.delta}
 					end
