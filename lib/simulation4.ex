@@ -12,8 +12,8 @@ defmodule OverviewSimulation do
 
 		delta: 1,
 		tEnd: 3600,
-		tPartStart: 1400,
-		tPartStop: 2000,
+		tPartStart: 400,
+		tPartStop: 1000,
 
 		#adversarial/honest validators
 		n: nil,
