@@ -28,6 +28,6 @@ defmodule Simulation1Test do
 
   test "new NPSimulation" do
     sim = NPSimulation.new(11, 1)
-    assert sim.validatorsPart1 == [0, 1, 2, 3, 4, 5, 6]
+    assert sim.validatorsPartA == [0, 1, 2, 3, 4, 5, 6]
   end
 end
