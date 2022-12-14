@@ -21,9 +21,9 @@ defmodule Utilities do
 
   defp chain_helper(block, chain) do
     if block.parent == nil do
-      chain ++ [block]
+      [block | chain]
     else
-      chain_helper(block.parent, chain ++ [block])
+      chain_helper(block.parent, [block | chain])
     end
   end
 
@@ -39,14 +39,23 @@ defmodule Utilities do
     # end
   end
 
+  defp ledger_helper(block, out) do
+    if block.parent == nil do
+      [block.payload | out]
+    else
+      ledger_helper(block.parent, [block.payload | out])
+    end
+  end
+
   #the following function returns the ledger from the block list
   @spec ledger(%PBlock{} | %DABlock{}) :: list(String.t())
   def ledger(block) do
-    if block.parent == nil do
-      [block.payload]
-    else
-      ledger(block.parent) ++ [block.payload]
-    end
+    ledger_helper(block, [])
+    # if block.parent == nil do
+    #   [block.payload]
+    # else
+    #   ledger(block.parent) ++ [block.payload]
+    # end
   end
 
   # Returns true if val is in list
