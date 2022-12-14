@@ -30,7 +30,7 @@ defmodule PBlock do
   @spec leader(non_neg_integer(), non_neg_integer(), non_neg_integer()) :: non_neg_integer()
   def leader(t, n, bft_delay) do
     e = epoch(t, bft_delay)
-    
+
     rng = MersenneTwister.init(4242 + e)
 
     trunc(elem(MersenneTwister.nextUniform(rng), 0)*n)
@@ -155,17 +155,15 @@ defmodule PClient do
       b0 = leaf.parent.parent
       b1 = leaf.parent
       b2 = leaf
-      {best_block, best_depth} =
-        if isnotarized(client, b0, n) and
-        isnotarized(client, b1, n) and
-        isnotarized(client, b2, n) and (b0.epoch == b2.epoch - 2) and (b1.epoch == b2.epoch - 1) and Utilities.depth(b1) > best_depth do
-          best_block = b1
-          best_depth = Utilities.depth(best_block)
-          {best_block, best_depth}
-        else
-          finalizedtip_helperwhile(client, leaf.parent, best_block, best_depth, n)
-        end
-      {best_block, best_depth}
+      if isnotarized(client, b0, n) and
+      isnotarized(client, b1, n) and
+      isnotarized(client, b2, n) and (b0.epoch == b2.epoch - 2) and (b1.epoch == b2.epoch - 1) and Utilities.depth(b1) > best_depth do
+        best_block = b1
+        best_depth = Utilities.depth(best_block)
+        {best_block, best_depth}
+      else
+        finalizedtip_helperwhile(client, leaf.parent, best_block, best_depth, n)
+      end
     end
   end
   #this is a helper function to the finalized tip function
@@ -201,14 +199,15 @@ defmodule PClient do
   end
 
   #this function is a helper function for the allblocks function
-  @spec allblocks_helper(%MapSet{}) :: %MapSet{}
-  defp allblocks_helper(leafs) do
+  @spec allblocks_helper(%MapSet{}, %MapSet{}) :: %MapSet{}
+  defp allblocks_helper(leafs, out) do
     if length(leafs) == 0 do
-      MapSet.new()
+      out
     else
       head = hd(leafs)
       tail = tl(leafs)
-      Mapset.union(MapSet.new(Utilities.chain(head)), allblocks_helper(tail))
+      out = Mapset.union(MapSet.new(Utilities.chain(head), out))
+      allblocks_helper(tail, out)
     end
   end
 
@@ -216,9 +215,27 @@ defmodule PClient do
   @spec allblocks(%PClient{}) :: %MapSet{}
   def allblocks(client) do
     leafs = MapSet.to_list(client.leafs)
-    allblocks_helper(leafs)
+    allblocks_helper(leafs, %MapSet{})
   end
 
+
+  defp pMsgProposal?(%PMsgProposal{}) do
+    true
+  end
+
+
+  defp pMsgProposal?(_) do
+    false
+  end
+
+
+  defp pMsgVote?(%PMsgVote{}) do
+    true
+  end
+
+  defp pMsgVote?(_) do
+    false
+  end
 
   #slot helper function
   @spec slot_helper(%PClient{},  non_neg_integer(), list(), non_neg_integer()) :: %PClient{}
@@ -227,7 +244,7 @@ defmodule PClient do
       client
     else
       msg = hd(msg_in)
-      if msg == %PMsgProposal{} do
+      if pMsgProposal?(msg) do
         #update leafs
         updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
         updated_leafs = MapSet.put(updated_leafs, msg.block)
@@ -253,7 +270,7 @@ defmodule PClient do
       client
     else
       msg = hd(msgs_in)
-      if msg == %PMsgVote{} do
+      if pMsgVote?(msg) do
         updated_votes = Map.put(client.votes, msg.block, msg.id)
         client = %{client | votes: updated_votes}
         slot_vote_helper(client, tl(msgs_in))
