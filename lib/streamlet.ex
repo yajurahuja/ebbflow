@@ -170,7 +170,7 @@ defmodule PClient do
   #this is a helper function to the finalized tip function
   @spec finalizedtip_helper(%PClient{}, list(), %PBlock{}, non_neg_integer(), non_neg_integer()) :: %PBlock{}
   def finalizedtip_helper(client, leafs, best_block, best_depth, n) do
-    if length(MapSet.to_list(leafs)) == 0 do
+    if length(leafs) == 0 do
       best_block
     else
       head = hd(leafs)
@@ -186,7 +186,8 @@ defmodule PClient do
       best_block = client.global_genesis_block
       best_depth = Utilities.depth(best_block)
       leafs = MapSet.to_list(client.leafs)
-      leafs = Enum.sort(leafs, fn x -> Utilities.depth(x) end)
+      IO.puts("#{inspect(leafs)}")
+      leafs = Enum.sort_by(leafs, fn x -> Utilities.depth(x) end)
       leafs = Enum.reverse(leafs)
       #travese through all leafs
       finalizedtip_helper(client, leafs, best_block, best_depth, n)
