@@ -97,11 +97,13 @@ defmodule NPSimulation do
     |> with_index
     |> each(fn x ->
       {{tPartStart, tPartEnd}, i} = x
-      case t do
-        tPartStart ->
+      cond do
+        tPartStart == t ->
           IO.puts("# t=#{t}: start of partition #{i}")
-        tPartEnd ->
+        tPartEnd == t ->
           IO.puts("# t=#{t}: end of partition #{i}")
+        true ->
+          nil
       end
     end
     )
@@ -133,6 +135,32 @@ defmodule NPSimulation do
     end
   end
 
+  	# Replaces validator object having given id.
+	@spec replaceValidator(%OverviewSimulation{}, non_neg_integer(), validator()):: %OverviewSimulation{}
+  def replaceValidator(config, validatorId, newValidator) do
+    %{config | validators:
+      map(config.validators,
+        fn x ->
+          if x.id == validatorId do
+            newValidator
+          else
+            x
+          end
+        end)}
+  end
+
+  def computeValidatorAction(vIds, validators, t, msgs_out_A, msgs_in_A, config) do
+    case vIds do
+      [] ->
+        {config, msgs_out_A}
+      [vId | tail] ->
+        {validator, msgs_out_A} = HonestValidator.slot(at(config.validators, vId),
+        t, msgs_out_A, msgs_in_A, config)
+        config = replaceValidator(config, vId, validator)
+        computeValidatorAction(tail, validators, t, msgs_out_A, msgs_in_A, config)
+      end
+  end
+
   def log_ledger_lengths(config, t) do
     # log ledger lengths
     l_Lp_A = config.validatorsA
@@ -159,7 +187,7 @@ defmodule NPSimulation do
     cond do
 			t == config.tEnd -> config
       true ->
-        # logTPartition(config, t)
+        logTPartition(config, t)
 
         # prepare msg queues
         msgs_out_A = []
@@ -168,18 +196,8 @@ defmodule NPSimulation do
         msgs_in_B = Map.get(config.msgsInflightB, t, [])
 
         # compute validator actions for this slot
-        for v <- config.validatorsA do
-          # TODO: slot!(v, t, msgs_out_A, msgs_in_A)
-          msgs_out_A = HonestValidator.slot(at(config.validators, v), t, msgs_out_A, msgs_in_A, config)
-        end
-
-        ## CHAITANYA: v is in an integer, it needs to be a validator object
-        ## Also, Honest validator updates the validator object, and returns
-        ## msgs_out_B
-        for v <- config.validatorsB do
-          # TODO: slot!(v, t, msgs_out_B, msgs_in_B)
-          msgs_out_B = HonestValidator.slot(at(config.validators, v), t, msgs_out_B, msgs_in_B, config)
-        end
+        {config, msgs_out_A} = computeValidatorAction(config.validatorsA, config.validators, t, msgs_out_A, msgs_in_A, config)
+        {config, msgs_out_B} = computeValidatorAction(config.validatorsB, config.validators, t, msgs_out_B, msgs_in_B, config)
 
         # msg delivery, respecting periods of intermittent partitions
         {t_delivery_inter, t_delivery_intra} = getDelivery(config, t)
