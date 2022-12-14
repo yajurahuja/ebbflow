@@ -1,12 +1,29 @@
 defmodule Utilities do
 
+  defp depth_helper(block, depth) do
+    if block.parent == nil do
+      depth
+    else
+      depth_helper(block.parent, depth+1)
+    end
+  end
+
   #the following function returns the depth of the block in the block chain
   @spec depth(%PBlock{} | %DABlock{}) :: non_neg_integer()
   def depth(block) do
+    depth_helper(block, 0)
+    # if block.parent == nil do
+    #   0
+    # else
+    #   1 + depth(block.parent)
+    # end
+  end
+
+  defp chain_helper(block, chain) do
     if block.parent == nil do
-      0
+      chain ++ [block]
     else
-      1 + depth(block.parent)
+      chain_helper(block.parent, chain ++ [block])
     end
   end
 
@@ -14,11 +31,12 @@ defmodule Utilities do
   #chain is a sequence of blocks starting with the genesis block chain[0] with strictly increasing epoch numbers.
   @spec chain(%PBlock{} | %DABlock{}) :: list(%PBlock{})|list(%DABlock{})
   def chain(block) do
-    if block.parent == nil do
-      [block]
-    else
-      chain(block.parent) ++ [block]
-    end
+    chain_helper(block, [])
+    # if block.parent == nil do
+    #   [block]
+    # else
+    #   chain(block.parent) ++ [block]
+    # end
   end
 
   #the following function returns the ledger from the block list
