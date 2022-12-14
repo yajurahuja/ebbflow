@@ -30,11 +30,6 @@ defmodule NPSimulation do
 
 		validators: nil,
 
-		validatorsHonest: nil,
-		validatorsAdversarial: nil,
-
-		validatorsAwake: nil,
-
 		validatorsA: nil,
 		validatorsB: nil,
 
@@ -64,11 +59,6 @@ defmodule NPSimulation do
 
 			validators: validators,
 
-			validatorsHonest: for id <- 0..(n-f-1) do id end,
-			validatorsAdversarial: for id <- (n-f)..(n-1) do id end,
-
-			validatorsAwake: for id <- 0..(n-f-1) do id end,
-
 			validatorsA: for id <- 0..round((n-f)/3*2-1) do id end,
 			validatorsB: for id <- round((n-f)/3*2)..(n-f-1) do id end,
 
@@ -77,6 +67,10 @@ defmodule NPSimulation do
 
 		}
 	end
+
+  def honest?(id, config) do
+    id < (config.n-config.f)
+  end
 
   @spec getpartition(%NPSimulation{}, non_neg_integer()) :: {boolean(), non_neg_integer()}
   def getpartition(config, t) do
@@ -101,12 +95,13 @@ defmodule NPSimulation do
   def logTPartition(config, t) do
     config.tPartitions
     |> with_index
-    |> each(fn({{tPartStart, tPartEnd}, i}) ->
-      cond do
-      t == tPartStart ->
-        IO.puts("# t=#{t}: start of partition #{i}")
-      t == tPartEnd ->
-        IO.puts("# t=#{t}: end of partition #{i}")
+    |> each(fn x ->
+      {{tPartStart, tPartEnd}, i} = x
+      case t do
+        tPartStart ->
+          IO.puts("# t=#{t}: start of partition #{i}")
+        tPartEnd ->
+          IO.puts("# t=#{t}: end of partition #{i}")
       end
     end
     )
@@ -115,12 +110,12 @@ defmodule NPSimulation do
   # Put new value in msgsInflight[t]
 	@spec modifyInflightMessagesA(%NPSimulation{}, non_neg_integer(), validator()) :: %NPSimulation{}
   def modifyInflightMessagesA(config, t, value) do
-    %{config | msgs_inflight_A:  Map.put(config.msgs_inflight_A, t, value)}
+    %{config | msgsInflightA:  Map.put(config.msgsInflightA, t, value)}
   end
 
   @spec modifyInflightMessagesB(%NPSimulation{}, non_neg_integer(), validator()) :: %NPSimulation{}
   def modifyInflightMessagesB(config, t, value) do
-    %{config | msgs_inflight_B:  Map.put(config.msgs_inflight_B, t, value)}
+    %{config | msgsInflightB:  Map.put(config.msgsInflightB, t, value)}
   end
 
   def getDelivery(config, t) do
@@ -140,17 +135,17 @@ defmodule NPSimulation do
 
   def log_ledger_lengths(config, t) do
     # log ledger lengths
-    l_Lp_A = config.validators_A
-    |> map(fn v -> length(HonestValidator.lp(v, config.n))-1 end)
+    l_Lp_A = config.validatorsA
+    |> map(fn v -> length(HonestValidator.lp(at(config.validators, v), config.n))-1 end)
     |> min()
-    l_Lp_B = config.validators_B
-    |> map(fn v -> length(HonestValidator.lp(v, config.n))-1 end)
+    l_Lp_B = config.validatorsB
+    |> map(fn v -> length(HonestValidator.lp(at(config.validators, v), config.n))-1 end)
     |> min()
-    l_Lda_A = config.validators_A
-    |> map(fn v -> length(HonestValidator.lda(v, config.n, config.k))-1 end)
+    l_Lda_A = config.validatorsA
+    |> map(fn v -> length(HonestValidator.lda(at(config.validators, v), config.n, config.k))-1 end)
     |> min()
-    l_Lda_B = config.validators_B
-    |> map(fn v -> length(HonestValidator.lda(v, config.n, config.k))-1 end)
+    l_Lda_B = config.validatorsB
+    |> map(fn v -> length(HonestValidator.lda(at(config.validators, v), config.n, config.k))-1 end)
     |> min()
     l_Lp = Kernel.min(l_Lp_A, l_Lp_B)
     l_Lda = Kernel.min(l_Lda_A, l_Lda_B)
@@ -164,18 +159,18 @@ defmodule NPSimulation do
     cond do
 			t == config.tEnd -> config
       true ->
-        logTPartition(config, t)
+        # logTPartition(config, t)
 
         # prepare msg queues
-        msgs_out_A = MapSet.new()
-        msgs_out_B = MapSet.new()
-        msgs_in_A = Map.get(config.msgsInflightA, t, MapSet.new())
-        msgs_in_B = Map.get(config.msgsInflightB, t, MapSet.new())
+        msgs_out_A = []
+        msgs_out_B = []
+        msgs_in_A = Map.get(config.msgsInflightA, t, [])
+        msgs_in_B = Map.get(config.msgsInflightB, t, [])
 
         # compute validator actions for this slot
         for v <- config.validatorsA do
           # TODO: slot!(v, t, msgs_out_A, msgs_in_A)
-          HonestValidator.slot(v, t, msgs_out_A, msgs_in_A, config)
+          msgs_out_A = HonestValidator.slot(at(config.validators, v), t, msgs_out_A, msgs_in_A, config)
         end
 
         ## CHAITANYA: v is in an integer, it needs to be a validator object
@@ -183,21 +178,21 @@ defmodule NPSimulation do
         ## msgs_out_B
         for v <- config.validatorsB do
           # TODO: slot!(v, t, msgs_out_B, msgs_in_B)
-          HonestValidator.slot(v, t, msgs_out_B, msgs_in_B, config)
+          msgs_out_B = HonestValidator.slot(at(config.validators, v), t, msgs_out_B, msgs_in_B, config)
         end
 
         # msg delivery, respecting periods of intermittent partitions
         {t_delivery_inter, t_delivery_intra} = getDelivery(config, t)
 
-        config = modifyInflightMessagesA(config, t_delivery_inter, Map.get(config.msgs_inflight_A, t_delivery_inter, MapSet.new()))
-        config = modifyInflightMessagesB(config, t_delivery_inter, Map.get(config.msgs_inflight_B, t_delivery_inter, MapSet.new()))
-        config = modifyInflightMessagesA(config, t_delivery_intra, Map.get(config.msgs_inflight_A, t_delivery_intra, MapSet.new()))
-        config = modifyInflightMessagesB(config, t_delivery_intra, Map.get(config.msgs_inflight_B, t_delivery_intra, MapSet.new()))
+        config = modifyInflightMessagesA(config, t_delivery_inter, Map.get(config.msgsInflightA, t_delivery_inter, []))
+        config = modifyInflightMessagesB(config, t_delivery_inter, Map.get(config.msgsInflightB, t_delivery_inter, []))
+        config = modifyInflightMessagesA(config, t_delivery_intra, Map.get(config.msgsInflightA, t_delivery_intra, []))
+        config = modifyInflightMessagesB(config, t_delivery_intra, Map.get(config.msgsInflightB, t_delivery_intra, []))
 
-        config = modifyInflightMessagesA(config, t_delivery_inter, MapSet.union(Map.fetch(config.msgs_inflight_A, t_delivery_inter), msgs_out_B))
-        config = modifyInflightMessagesB(config, t_delivery_inter, MapSet.union(Map.fetch(config.msgs_inflight_B, t_delivery_inter), msgs_out_A))
-        config = modifyInflightMessagesA(config, t_delivery_intra, MapSet.union(Map.fetch(config.msgs_inflight_A, t_delivery_intra), msgs_out_A))
-        config = modifyInflightMessagesB(config, t_delivery_intra, MapSet.union(Map.fetch(config.msgs_inflight_B, t_delivery_intra), msgs_out_B))
+        config = modifyInflightMessagesA(config, t_delivery_inter, Map.fetch!(config.msgsInflightA, t_delivery_inter) ++ msgs_out_B)
+        config = modifyInflightMessagesB(config, t_delivery_inter, Map.fetch!(config.msgsInflightB, t_delivery_inter) ++ msgs_out_A)
+        config = modifyInflightMessagesA(config, t_delivery_intra, Map.fetch!(config.msgsInflightA, t_delivery_intra) ++ msgs_out_A)
+        config = modifyInflightMessagesB(config, t_delivery_intra, Map.fetch!(config.msgsInflightB, t_delivery_intra) ++ msgs_out_B)
 
         if rem(t, 15*config.second) == 0 do
           log_ledger_lengths(config, t)
