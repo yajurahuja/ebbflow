@@ -21,7 +21,7 @@ defmodule Validator do
   end
 
   @spec flattenList(list(list(String.t())), list(String.t())) :: list(String.t())
-  defp flattenList(list, out) do
+  def flattenList(list, out) do
     case list do
       [] -> out
       [head | tail] -> flattenList(tail, out ++ head)
@@ -63,9 +63,9 @@ defmodule HonestValidator do
       []))
   end
 
-  @spec lda(%HonestValidator{}, non_neg_integer()) :: list(String.t())
-  def lda(validator, n) do
-    Validator.sanitize(lp(validator, n) ++ Utilities.ledger(validator.client_da))
+  @spec lda(%HonestValidator{}, non_neg_integer(), non_neg_integer()) :: list(String.t())
+  def lda(validator, n, k) do
+    Validator.sanitize(lp(validator, n) ++ DAClient.ledger(validator.client_da, k))
   end
 end
 
@@ -130,9 +130,9 @@ defmodule AdversarialValidator do
     end
   end
 
-  @spec lda(%AdversarialValidator{}) :: list(String.t())
-  def lda(validator) do
-    Validator.sanitize(Utilities.ledger(validator.client_da))
+  @spec lda(%AdversarialValidator{}, non_neg_integer()) :: list(String.t())
+  def lda(validator, k) do
+    Validator.sanitize(DAClient.ledger(validator.client_da, k))
   end
 
 end

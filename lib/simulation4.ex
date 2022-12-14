@@ -289,13 +289,13 @@ defmodule OverviewSimulation do
 		
 		l_Lp_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lp(at(config.validators, x), config.n))-1 end))
 		l_Lp_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lp(at(config.validators, x), config.n))-1 end))
-		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n))-1 end))
-		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n))-1 end))
+		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n, config.k))-1 end))
+		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lda(at(config.validators, x), config.n, config.k))-1 end))
 
-		l_Lp = Enum.min(l_Lp_1, l_Lp_2)
-		l_Lda = Enum.min(l_Lda_1, l_Lda_2)
+		l_Lp = Enum.min([l_Lp_1, l_Lp_2])
+		l_Lda = Enum.min([l_Lda_1, l_Lda_2])
 
-		l_Lda_adv = Enum.min(config.validatorsAdversarial |> Enum.map(fn x -> length(AdversarialValidator.lda(x))-1 end))
+		l_Lda_adv = Enum.min(config.validatorsAdversarial |> Enum.map(fn x -> length(AdversarialValidator.lda(at(config.validators, x), config.k))-1 end))
 
 		IO.puts(inspect([t/config.second, l_Lp, l_Lp_1, l_Lp_2, l_Lda, l_Lda_1, l_Lda_2, length(config.validatorsAwake), 
 			length(config.validatorsAsleep), l_Lda_adv]))
