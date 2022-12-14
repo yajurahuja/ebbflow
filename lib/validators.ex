@@ -1,12 +1,13 @@
 defmodule Validator do
 
   @type msg() :: %DAMsgNewBlock{} | %PMsgProposal{} | %PMsgVote{}
+  @type config() :: %OverviewSimulation{} | %DPSimulation{}
 
   @spec sanitizeHelper(list(String.t()), list(String.t())) :: list(String.t())
   defp sanitizeHelper(list, out) do
     case list do
       [] -> out
-      [head | tail] -> 
+      [head | tail] ->
         if Utilities.checkMembership(head, out) do
           sanitizeHelper(tail, out)
         else
@@ -48,7 +49,7 @@ defmodule HonestValidator do
     }
   end
 
-  @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg()), float()) :: {%HonestValidator{}, list(Validator.msg())}
+  @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg()), Validator.config()) :: {%HonestValidator{}, list(Validator.msg())}
   def slot(validator, t, msgs_out, msgs_in, config) do
     {client_da, msgs_out} = DAMsgNewBlock.slot!(validator.client_da, t, msgs_out, msgs_in, :honest, (config.lambda/config.n)/config.second)
     {client_p, msgs_out} = PClient.slot!(validator.client_p, t, msgs_out, msgs_in, config.deltaBft, config.n, config.k)
@@ -59,7 +60,7 @@ defmodule HonestValidator do
   @spec lp(%HonestValidator{}, non_neg_integer()) :: list(String.t())
   def lp(validator, n) do
     Validator.sanitize(Validator.flattenList(
-      Enum.map(PClient.ledger(validator.client_p, n), fn x -> Utilities.ledger(x) end), 
+      Enum.map(PClient.ledger(validator.client_p, n), fn x -> Utilities.ledger(x) end),
       []))
   end
 
@@ -93,7 +94,7 @@ defmodule AdversarialValidator do
   defp findMaxBlockDepth(msgs, maxVal) do
     case msgs do
       [] -> maxVal
-      [head | tail] -> 
+      [head | tail] ->
         case head do
           %DAMsgNewBlock{} -> findMaxBlockDepth(tail, Enum.max(maxVal, Utilities.depth(head.block)))
           _ -> findMaxBlockDepth(tail, maxVal)
@@ -101,10 +102,10 @@ defmodule AdversarialValidator do
     end
   end
 
-  @spec slot(%AdversarialValidator{}, non_neg_integer(), non_neg_integer(), 
-    list(Validator.msg()), list(Validator.msg()), list(Validator.msg()), 
-    list(Validator.msg()), float()) 
-      :: {%AdversarialValidator{}, list(Validator.msg()), 
+  @spec slot(%AdversarialValidator{}, non_neg_integer(), non_neg_integer(),
+    list(Validator.msg()), list(Validator.msg()), list(Validator.msg()),
+    list(Validator.msg()), float())
+      :: {%AdversarialValidator{}, list(Validator.msg()),
         list(Validator.msg())}
   def slot(validator, n, t, msgs_out_private_adversarial, msgs_out_rush_honest, msgs_in, msgs_in_rush_honest, prob_pos_mining_success_per_slot) do
     {client_da, msgs_out_private_adversarial} = DAMsgNewBlock.slot!(validator.client_da, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial, prob_pos_mining_success_per_slot)
