@@ -17,9 +17,9 @@ defmodule PBlock do
     }
   end
 
-  @spec genesis() :: %PBlock{}
-  def genesis() do
-    new(nil, -1, DABlock.genesis()) #TODO: Fix to return th global genesis block
+  @spec genesis(%DABlock{}) :: %PBlock{}
+  def genesis(genesisDA) do
+    new(nil, -1, genesisDA) #TODO: Fix to return th global genesis block
   end
 
   @spec epoch(non_neg_integer(), non_neg_integer()) :: number()
@@ -87,7 +87,7 @@ defmodule PClient do
     %PClient{
       id: id,
       client_da: client_da,
-      leafs: MapSet.new(global_genesis_block),
+      leafs: MapSet.new([global_genesis_block]),
       votes: %{}, #Key => Value:  PBlock => Set{int}
       current_epoch_proposal: nil,
       genesis: global_genesis_block
@@ -194,7 +194,7 @@ defmodule PClient do
 
 
   #This function returns the ledger
-  @spec ledger(%PClient{}, non_neg_integer()) :: list(string())
+  @spec ledger(%PClient{}, non_neg_integer()) :: list(String.t())
   def ledger(client, n) do
     Utilities.ledger(finalizedtip(client, n))
   end
@@ -227,29 +227,30 @@ defmodule PClient do
     else
       msg = hd(msg_in)
       client =
-      if msg == %PMsgProposal{} do
-        #update leafs
-        updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
-        updated_leafs = MapSet.put(updated_leafs, msg.block)
-        client = %{client | leafs: updated_leafs}
-        client = %{client | votes: Map.put(client.votes, msg.block, MapSet.new())}
-        #update current_epoch_proposal
-        client =
-          if msg.block.epoch ==  PBlock.epoch(t, bft_delay) and client.current_proposal == nil do
-            %{client | current_proposal: msg.block}
-          else
-            client
-          end
-        slot_helper(client, t, tl(msg_in), bft_delay)
-      else
-        slot_helper(client, t, tl(msg_in), bft_delay)
-      end
+        if msg == %PMsgProposal{} do
+          #update leafs
+          updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
+          updated_leafs = MapSet.put(updated_leafs, msg.block)
+          client = %{client | leafs: updated_leafs}
+          client = %{client | votes: Map.put(client.votes, msg.block, MapSet.new())}
+          #update current_epoch_proposal
+          client =
+            if msg.block.epoch ==  PBlock.epoch(t, bft_delay) and client.current_proposal == nil do
+              %{client | current_proposal: msg.block}
+            else
+              client
+            end
+          slot_helper(client, t, tl(msg_in), bft_delay)
+        else
+          slot_helper(client, t, tl(msg_in), bft_delay)
+        end
+      client
     end
   end
 
   @spec slot_vote_helper(%PClient{}, list()) :: %PClient{}
   def slot_vote_helper(client, msgs_in) do
-    if List.length(msgs_in) == 0 do
+    if length(msgs_in) == 0 do
       client
     else
       msg = hd(msgs_in)

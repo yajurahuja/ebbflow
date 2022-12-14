@@ -116,8 +116,8 @@ defmodule DPSimulation do
 		:rand.seed(config.rngDa)
 		dir =
 			cond do
-				List.length(awake) == (2 * config.f) + 1 -> Enum.random([:toawake, :nothing])
-				List.length(awake) == (config.n-config.f) -> Enum.random([:nothing, :toasleep])
+				length(awake) == (2 * config.f) + 1 -> Enum.random([:toawake, :nothing])
+				length(awake) == (config.n-config.f) -> Enum.random([:nothing, :toasleep])
 				_ -> Enum.random([:toawake, :toasleep])
 			end
 

@@ -130,8 +130,8 @@ defmodule OverviewSimulation do
 		:rand.seed(config.rngDa)
 		dir = 
 			cond do
-				List.length(config.validatorsAwake) == 60 -> random([:toawake, :nothing])
-				List.length(config.validatorsAwake) == (config.n-config.f) -> random([:nothing, :toasleep])
+				length(config.validatorsAwake) == 60 -> random([:toawake, :nothing])
+				length(config.validatorsAwake) == (config.n-config.f) -> random([:nothing, :toasleep])
 				true -> random([:toawake, :toasleep])
 			end
 
@@ -282,18 +282,18 @@ defmodule OverviewSimulation do
 		validatorsAwakePart1 = MapSet.intersect(MapSet.new(config.validatorsAwake), MapSet.new(config.validatorsPart1))
 		validatorsAwakePart2 = MapSet.intersect(MapSet.new(config.validatorsAwake), MapSet.new(config.validatorsPart2))
 		
-		l_Lp_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> List.length(HonestValidator.lp(x))-1 end))
-		l_Lp_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> List.length(HonestValidator.lp(x))-1 end))
-		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> List.length(HonestValidator.lda(x))-1 end))
-		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> List.length(HonestValidator.lda(x))-1 end))
+		l_Lp_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lp(x))-1 end))
+		l_Lp_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lp(x))-1 end))
+		l_Lda_1 = Enum.min(validatorsAwakePart1 |> Enum.map(fn x -> length(HonestValidator.lda(x))-1 end))
+		l_Lda_2 = Enum.min(validatorsAwakePart2 |> Enum.map(fn x -> length(HonestValidator.lda(x))-1 end))
 
 		l_Lp = Enum.min(l_Lp_1, l_Lp_2)
 		l_Lda = Enum.min(l_Lda_1, l_Lda_2)
 
-		l_Lda_adv = Enum.min(validatorsAdversarial |> Enum.map(fn x -> List.length(AdversarialValidator.lda(x))-1 end))
+		l_Lda_adv = Enum.min(validatorsAdversarial |> Enum.map(fn x -> length(AdversarialValidator.lda(x))-1 end))
 
-		IO.puts(inspect([t/config.second, l_Lp, l_Lp_1, l_Lp_2, l_Lda, l_Lda_1, l_Lda_2, List.length(config.validatorsAwake), 
-			List.length(config.validatorsAsleep), l_Lda_adv]))
+		IO.puts(inspect([t/config.second, l_Lp, l_Lp_1, l_Lp_2, l_Lda, l_Lda_1, l_Lda_2, length(config.validatorsAwake), 
+			length(config.validatorsAsleep), l_Lda_adv]))
 	end
 
 	@spec runSimulation(%OverviewSimulation{}, non_neg_integer()) :: %OverviewSimulation{}
@@ -310,13 +310,13 @@ defmodule OverviewSimulation do
 					if rem(t, 15*config.second) == 0 do
 						case config.livenessPhaseStart do
 							nil -> 
-								if List.length(config.validatorsAwake) >= 67 do
+								if length(config.validatorsAwake) >= 67 do
 									%{config | livenessPhaseStart: t}
 								else
 									config
 								end
 							_ -> 
-								if List.length(config.validatorsAwake) < 67 or t == config.tEnd do
+								if length(config.validatorsAwake) < 67 or t == config.tEnd do
 									config = pushLivenessPhase(config, 
 										{config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
 									%{config | livenessPhaseStart: nil}

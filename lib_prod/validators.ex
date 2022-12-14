@@ -2,7 +2,7 @@ defmodule Validator do
 
   @type msg() :: %DAMsgNewBlock{} | %PMsgProposal{} | %PMsgVote{}
 
-  @spec sanitizeHelper(list(string()), list(string())) :: list(string())
+  @spec sanitizeHelper(list(String.t()), list(String.t())) :: list(String.t())
   defp sanitizeHelper(list, out) do
     case list do
       [] -> out
@@ -15,12 +15,12 @@ defmodule Validator do
     end
   end
 
-  @spec sanitize(list(string())) :: list(string())
+  @spec sanitize(list(String.t())) :: list(String.t())
   def sanitize(list) do
     sanitizeHelper(list, [])
   end
 
-  @spec flattenList(list(list(string())), list(string)) :: list(string())
+  @spec flattenList(list(list(String.t())), list(String.t())) :: list(String.t())
   defp flattenList(list, out) do
     case list do
       [] -> out
@@ -37,10 +37,10 @@ defmodule HonestValidator do
   )
 
   #creates a new Honest Validator
-  @spec new(integer()) :: %HonestValidator{}
-  def new(id) do
-    client_da = DAClient.new(id)
-    client_p = PClient.new(id, client_da)
+  @spec new(integer(), %DABlock{}, %PBlock{}) :: %HonestValidator{}
+  def new(id, genesisDA, genesisP) do
+    client_da = DAClient.new(id, genesisDA)
+    client_p = PClient.new(id, client_da, genesisP)
     %HonestValidator{
       id: id,
       client_da: client_da,
@@ -48,21 +48,22 @@ defmodule HonestValidator do
     }
   end
 
-  @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg())) :: {%HonestValidator{}, list(Validator.msg())}
-  def slot(validator, t, msgs_out, msgs_in) do
-    {client_da, msgs_out} = DAClient.slot(validator.client_da, t, msgs_out, msgs_in, :honest)
-    {client_p, msgs_out} = PClient.slot(validator.client_p, t, msgs_out, msgs_in)
+  @spec slot(%HonestValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg()), float()) :: {%HonestValidator{}, list(Validator.msg())}
+  def slot(validator, t, msgs_out, msgs_in, config) do
+    {client_da, msgs_out} = DAMsgNewBlock.slot!(validator.client_da, t, msgs_out, msgs_in, :honest, (config.lambda/config.n)/config.second)
+    {client_p, msgs_out} = PClient.slot!(validator.client_p, t, msgs_out, msgs_in, config.bftDelay, config.n)
 
     {%{validator | client_da: client_da, client_p: client_p}, msgs_out}
   end
 
-  @spec lp(%HonestValidator{}) :: list(string)
+  @spec lp(%HonestValidator{}) :: list(String.t())
   def lp(validator) do
-    Validator.sanitize(Validator.flattenList(Enum.map(validator.client_p, 
-      fn x -> Utilities.ledger(x) end), []))
+    Validator.sanitize(Validator.flattenList(
+      Enum.map(validator.client_p, fn x -> Utilities.ledger(x) end), 
+      []))
   end
 
-  @spec lda(%HonestValidator{}) :: list(string)
+  @spec lda(%HonestValidator{}) :: list(String.t())
   def lda(validator) do
     Validator.sanitize(lp(validator) ++ Utilities.ledger(validator.client_da))
   end
@@ -74,9 +75,9 @@ defmodule AdversarialValidator do
     client_da: nil
   )
 
-  @spec new(integer()) :: %AdversarialValidator{}
-  def new(id) do
-    client_da = DAClient.new(id)
+  @spec new(integer(), %DABlock{}, %PBlock{}) :: %AdversarialValidator{}
+  def new(id, genesisDA, _) do
+    client_da = DAClient.new(id, genesisDA)
     %AdversarialValidator{
       id: id,
       client_da: client_da
@@ -84,7 +85,7 @@ defmodule AdversarialValidator do
   end
 
   @spec slot(%AdversarialValidator{}, non_neg_integer(), list(Validator.msg()), list(Validator.msg())) :: list(Validator.msg())
-  def slot(validator, t, msgs_out, msgs_in) do
+  def slot(_, _, msgs_out, _) do
     msgs_out
   end
 
@@ -102,11 +103,11 @@ defmodule AdversarialValidator do
 
   @spec slot(%AdversarialValidator{}, non_neg_integer(), non_neg_integer(), 
     list(Validator.msg()), list(Validator.msg()), list(Validator.msg()), 
-    list(Validator.msg())) 
+    list(Validator.msg()), float()) 
       :: {%AdversarialValidator{}, list(Validator.msg()), 
         list(Validator.msg())}
-  def slot(validator, n, t, msgs_out_private_adversarial, msgs_out_rush_honest, msgs_in, msgs_in_rush_honest) do
-    {client_da, msgs_out_private_adversarial} = DAClient.slot(validator, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial)
+  def slot(validator, n, t, msgs_out_private_adversarial, msgs_out_rush_honest, msgs_in, msgs_in_rush_honest, prob_pos_mining_success_per_slot) do
+    {client_da, msgs_out_private_adversarial} = DAMsgNewBlock.slot!(validator, t, msgs_out_private_adversarial, msgs_in ++ msgs_in_rush_honest, :adversarial, prob_pos_mining_success_per_slot)
 
     validator = %{validator | client_da: client_da}
 
@@ -129,7 +130,7 @@ defmodule AdversarialValidator do
     end
   end
 
-  @spec lda(%AdversarialValidator{}) :: list(string())
+  @spec lda(%AdversarialValidator{}) :: list(String.t())
   def lda(validator) do
     Validator.sanitize(Utilities.ledger(validator.client_da))
   end

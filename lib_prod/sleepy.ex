@@ -21,15 +21,18 @@ end
 defmodule DAClient do
   defstruct(
     id: nil,
-    leafs: MapSet.new([DABlock.genesis()]),
-    rng_mining: nil
+    leafs: nil,
+    rng_mining: nil,
+    genesis: nil
   )
 
-  @spec new(non_neg_integer()) :: %DAClient{}
-  def new(id) do
+  @spec new(non_neg_integer(), %DABlock{}) :: %DAClient{}
+  def new(id, genesisDA) do
     %DAClient{
       id: id,
-      rng_mining: MersenneTwister.init(2342 + id)
+      leafs: MapSet.new([genesisDA]),
+      rng_mining: MersenneTwister.init(2342 + id),
+      genesis: genesisDA
     }
   end
 
@@ -40,21 +43,21 @@ defmodule DAClient do
     hd(leafs)
   end
 
-  @spec confirmedtip_helper(%DABlock{}, non_neg_integer()) :: %DABlock{}
-  defp confirmedtip_helper(block, k) do
+  @spec confirmedtip_helper(%DAClient{}, %DABlock{}, non_neg_integer()) :: %DABlock{}
+  defp confirmedtip_helper(client, block, k) do
     cond do
-      k == 0 or block == DABlock.genesis() ->
+      k == 0 or block == client.genesis ->
         block
       true ->
         block = block.parent
-        confirmedtip_helper(block, k-1)
+        confirmedtip_helper(client, block, k-1)
     end
   end
 
   @spec confirmedtip(%DABlock{}, non_neg_integer()) :: %DABlock{}
   def confirmedtip(client, k) do
     b = tip(client)
-    confirmedtip_helper(b, k)
+    confirmedtip_helper(client, b, k)
   end
 
 
@@ -96,7 +99,7 @@ defmodule DAMsgNewBlock do
   end
 
   @spec slot!(%DABlock{}, non_neg_integer(), list(), list(), any(), any()) :: {%DAClient{}, list()}
-  def slot!(client, t, msgs_out, msgs_in, role \\ :honest, prob_pos_mining_success_per_slot) do
+  def slot!(client, t, msgs_out, msgs_in, role, prob_pos_mining_success_per_slot) do
     daMsgs = Enum.filter(msgs_in, fn x -> daMsgNewBlock?(x) end)
     diff = daMsgs
     |> Enum.map(fn x -> x.block.parent end)
@@ -109,15 +112,18 @@ defmodule DAMsgNewBlock do
     client = %{client | leafs: MapSet.difference(client.leafs, diff)}
     client = %{client | leafs: MapSet.union(client.leafs, additions)}
 
-    if elem(MersenneTwister.nextUniform(client.rng_mining), 0) <= prob_pos_mining_success_per_slot do
-      if role == :honest do
-        new_dablock = DABlock.new(DAClient.tip(client), "t=#{t},id=#{client.id}")
-        MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
-      else
-        new_dablock = DABlock.new(DAClient.tip(client), "adversarial:t=#{t},id=#{client.id}")
-        MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
+    msgs_out = 
+      if elem(MersenneTwister.nextUniform(client.rng_mining), 0) <= prob_pos_mining_success_per_slot do
+        if role == :honest do
+          new_dablock = DABlock.new(DAClient.tip(client), "t=#{t},id=#{client.id}")
+          MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
+        else
+          new_dablock = DABlock.new(DAClient.tip(client), "adversarial:t=#{t},id=#{client.id}")
+          MapSet.put(msgs_out, DAMsgNewBlock.new(t, client.id, new_dablock))
+        end
       end
-    end
+
+    {client, msgs_out}
   end
 
 end
