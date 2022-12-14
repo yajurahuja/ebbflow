@@ -48,7 +48,7 @@ defmodule PMsgProposal do
 
   @spec new(non_neg_integer(), non_neg_integer(), %PBlock{}) :: %PMsgProposal{}
   def new(t, id, block) do
-    %{
+    %PMsgProposal{
       t: t,
       id: id,
       block: block
@@ -64,7 +64,7 @@ defmodule PMsgVote do
   )
   @spec new(non_neg_integer(), non_neg_integer(), %PBlock{}) :: %PMsgVote{}
   def new(t, id, block) do
-    %{
+    %PMsgVote{
       t: t,
       id: id,
       block: block
@@ -99,11 +99,14 @@ defmodule PClient do
   def isnotarized(client, block, n) do
     cond do
       #if the current block is the genesis block: return true
-      #block == client.global_genesis_block -> true
-      block.epoch == -1 -> true
+      block == client.global_genesis_block -> true
+      #block.epoch == -1 -> true
       #if length of the votes for of the client for block c are atleast n * 2/3: return true
       MapSet.size(client.votes[block]) >= ((n * 2) / 3) -> true
-      true -> false
+      true ->
+        IO.puts("Yay!")
+        IO.puts("#{inspect(MapSet.size(client.votes[block]))}")
+      false
     end
   end
 
@@ -111,6 +114,7 @@ defmodule PClient do
   def lastnotarized(client, block, n) do
     #while the the block for a client is not notarized, we go up in the blockchain
     if isnotarized(client, block, n) do
+      #IO.puts("block notarized: #{inspect(block.payload)}")
       block
     else
       lastnotarized(client, block.parent, n)
@@ -246,6 +250,7 @@ defmodule PClient do
     else
       msg = hd(msg_in)
       if pMsgProposal?(msg) do
+        IO.puts("MsgProposal: #{inspect(msg)}")
         #update leafs
         updated_leafs = MapSet.difference(client.leafs, MapSet.new([msg.block.parent]))
         updated_leafs = MapSet.put(updated_leafs, msg.block)
@@ -272,6 +277,7 @@ defmodule PClient do
     else
       msg = hd(msgs_in)
       if pMsgVote?(msg) do
+        IO.puts("MsgVote: #{inspect(msg)}")
         updated_votes = Map.put(client.votes, msg.block, msg.id)
         client = %{client | votes: updated_votes}
         slot_vote_helper(client, tl(msgs_in))
@@ -287,13 +293,14 @@ defmodule PClient do
     client = slot_helper(client, t, msgs_in, bft_delay)
     #update votes
     client = slot_vote_helper(client, msgs_in)
-    {client, msgs_out} =
+
     if rem(t, (2 * bft_delay)) == 0 do
       client = %{client | current_epoch_proposal: nil}
       msgs_out =
       if PBlock.leader(t, n, bft_delay) == client.id do
         new_pblock = PBlock.new(tip(client, n), PBlock.epoch(t, bft_delay), DAClient.confirmedtip(client.client_da, k))
         msgs_out ++ [PMsgProposal.new(t, client.id, new_pblock)]
+        #IO.puts(#{})
       else
         msgs_out
       end
@@ -307,6 +314,5 @@ defmodule PClient do
       end
       {client, msgs_out}
     end
-    {client, msgs_out}
   end
 end
