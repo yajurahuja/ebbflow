@@ -97,6 +97,7 @@ defmodule PClient do
 
   @spec isnotarized(%PClient{}, %PBlock{}, non_neg_integer()) :: boolean()
   def isnotarized(client, block, n) do
+    IO.puts(inspect(client.votes[block]))
     cond do
       #if the current block is the genesis block: return true
       block == client.global_genesis_block -> true
@@ -277,8 +278,9 @@ defmodule PClient do
     else
       msg = hd(msgs_in)
       if pMsgVote?(msg) do
-       #IO.puts("MsgVote!")
-        updated_votes = Map.put(client.votes, msg.block, msg.id)
+        #IO.puts("MsgVote!")
+        new_votes = MapSet.put(client.votes[msg.block], msg.id)
+        updated_votes = Map.put(client.votes, msg.block, new_votes)
         client = %{client | votes: updated_votes}
         slot_vote_helper(client, tl(msgs_in))
       else
