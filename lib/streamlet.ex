@@ -30,9 +30,10 @@ defmodule PBlock do
   @spec leader(non_neg_integer(), non_neg_integer(), non_neg_integer()) :: non_neg_integer()
   def leader(t, n, bft_delay) do
     e = epoch(t, bft_delay)
-    #TODO: fix seeding according to TSE group, check if required
-    # :rand.seed(4242 + e)
-    Enum.random(1..n)
+    
+    rng = MersenneTwister.init(4242 + e)
+
+    Float.floor(MersenneTwister.nextUniform(rng)*n)
   end
 
 end
