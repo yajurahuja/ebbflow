@@ -64,7 +64,6 @@ defmodule SleepyTest do
     genesisDA = DABlock.genesis()
     client = DAClient.new(2, genesisDA)
     {_, slot} = DAMsgNewBlock.slot!(client, 2, [], [], :honest, 0.7)
-    IO.puts(length(slot))
     assert length(slot) == 1
     assert hd(slot).id == 2
     assert hd(slot).t == 2
@@ -75,7 +74,6 @@ defmodule SleepyTest do
   test "slot! - dummy client" do
     client = dummy_client()
     {_, slot} = DAMsgNewBlock.slot!(client, 2, [], [], :honest, 0.7)
-    IO.puts(length(slot))
     assert length(slot) == 1
     assert hd(slot).id == 2
     assert hd(slot).t == 2
