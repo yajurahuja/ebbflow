@@ -33,7 +33,7 @@ defmodule PBlock do
     
     rng = MersenneTwister.init(4242 + e)
 
-    Float.floor(MersenneTwister.nextUniform(rng)*n)
+    trunc(elem(MersenneTwister.nextUniform(rng), 0)*n)
   end
 
 end
