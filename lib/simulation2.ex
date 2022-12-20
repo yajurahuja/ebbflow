@@ -1,4 +1,4 @@
-defmodule OverviewSimulation do
+defmodule AdversarialSimulation do
 
   @type validator() :: %HonestValidator{} | %AdversarialValidator{}
 
@@ -12,8 +12,8 @@ defmodule OverviewSimulation do
 
 		delta: 1,
 		tEnd: 3600,
-		tPartStart: 1400,
-		tPartStop: 2500,
+		tPartStart: 10*60,
+		tPartStop: 30*60,
 
 		#adversarial/honest validators
 		n: nil,
@@ -47,7 +47,7 @@ defmodule OverviewSimulation do
 
 	)
 
-	@spec new(non_neg_integer(), non_neg_integer()) :: %OverviewSimulation{}
+	@spec new(non_neg_integer(), non_neg_integer()) :: %AdversarialSimulation{}
 	def new(n, f) do
 		genesisDA = DABlock.genesis()
 		genesisP = PBlock.genesis(genesisDA)
@@ -60,7 +60,7 @@ defmodule OverviewSimulation do
 					AdversarialValidator.new(id, genesisDA, genesisP)
 				end
 			end
-		%OverviewSimulation{
+		%AdversarialSimulation{
 			n: n,
 			f: f,
 
@@ -74,8 +74,8 @@ defmodule OverviewSimulation do
 			validatorsAwake: for id <- 0..(n-f-1) do id end,
 			validatorsAsleep: [],
 
-			validatorsPart1: for id <- 0..(div((n-f), 2)-1) do id end,
-			validatorsPart2: for id <- (div((n-f), 2))..(n-f-1) do id end,
+			validatorsPart1: for id <- 0..14 do id end,
+			validatorsPart2: for id <- 15..(n-f-1) do id end,
 
 			msgsInflight: Map.new(),
 			msgsMissed: Map.new(for v <- validators do {v.id, []} end),
@@ -85,37 +85,37 @@ defmodule OverviewSimulation do
 		}
 	end
 
-	@spec shuffleAwake(%OverviewSimulation{}) :: %OverviewSimulation{}
+	@spec shuffleAwake(%AdversarialSimulation{}) :: %AdversarialSimulation{}
 	def shuffleAwake(config) do
 		%{config | validatorsAwake: shuffle(config.validatorsAwake)}
 	end
 
-	@spec shuffleAsleep(%OverviewSimulation{}) :: %OverviewSimulation{}
+	@spec shuffleAsleep(%AdversarialSimulation{}) :: %AdversarialSimulation{}
 	def shuffleAsleep(config) do
 		%{config | validatorsAsleep: shuffle(config.validatorsAsleep)}
 	end
 
-	@spec popAwake(%OverviewSimulation{}) :: %OverviewSimulation{}
+	@spec popAwake(%AdversarialSimulation{}) :: %AdversarialSimulation{}
 	def popAwake(config) do
 		%{config | validatorsAwake: tl(config.validatorsAwake)}
 	end
 
-	@spec popAsleep(%OverviewSimulation{}) :: %OverviewSimulation{}
+	@spec popAsleep(%AdversarialSimulation{}) :: %AdversarialSimulation{}
 	def popAsleep(config) do
 		%{config | validatorsAsleep: tl(config.validatorsAsleep)}
 	end
 
-	@spec pushAwake(%OverviewSimulation{}, non_neg_integer()) :: %OverviewSimulation{}
+	@spec pushAwake(%AdversarialSimulation{}, non_neg_integer()) :: %AdversarialSimulation{}
 	def pushAwake(config, validatorId) do
 		%{config | validatorsAwake: config.validatorsAwake ++ [validatorId]}
 	end
-	@spec pushAsleep(%OverviewSimulation{}, non_neg_integer()) :: %OverviewSimulation{}
+	@spec pushAsleep(%AdversarialSimulation{}, non_neg_integer()) :: %AdversarialSimulation{}
 	def pushAsleep(config, validatorId) do
 		%{config | validatorsAsleep: config.validatorsAsleep ++ [validatorId]}
 	end
 
-	@spec pushLivenessPhase(%OverviewSimulation{},
-		{non_neg_integer(), non_neg_integer(), non_neg_integer()}) :: %OverviewSimulation{}
+	@spec pushLivenessPhase(%AdversarialSimulation{},
+		{non_neg_integer(), non_neg_integer(), non_neg_integer()}) :: %AdversarialSimulation{}
 	def pushLivenessPhase(config, phase) do
 		%{config | livenessPhase: config.livenessPhase ++ [phase]}
 	end
@@ -127,7 +127,7 @@ defmodule OverviewSimulation do
 	end
 
 	# Puts an honest validator to sleep, or wakes it up, or does nothing.
-	@spec daTick(%OverviewSimulation{}) :: %OverviewSimulation{}
+	@spec daTick(%AdversarialSimulation{}) :: %AdversarialSimulation{}
 	def daTick(config) do
 		{nextRand, newRng} = MersenneTwister.nextUniform(config.rngDa)
 		config = %{config | rngDa: newRng}
@@ -152,8 +152,8 @@ defmodule OverviewSimulation do
 	end
 
 	# Replaces validator object having given id.
-	@spec replaceValidator(%OverviewSimulation{}, non_neg_integer(), validator())
-		:: %OverviewSimulation{}
+	@spec replaceValidator(%AdversarialSimulation{}, non_neg_integer(), validator())
+		:: %AdversarialSimulation{}
 	def replaceValidator(config, validatorId, newValidator) do
 		%{config | validators:
 			map(config.validators,
@@ -171,9 +171,9 @@ defmodule OverviewSimulation do
 	# Set validatorIds to config.validatorsHonest.
 	# msgsOutPart1 aggregagates msgs output by validatorsPart1.
 	#		On initial call, it should be empty. Same for msgsOutPart2.
-	@spec slotHonestMsgs(%OverviewSimulation{}, non_neg_integer(), list(non_neg_integer()),
+	@spec slotHonestMsgs(%AdversarialSimulation{}, non_neg_integer(), list(non_neg_integer()),
 		list(Validator.msg()), list(Validator.msg()), list(Validator.msg()))
-			:: {%OverviewSimulation{}, list(Validator.msg()), list(Validator.msg())}
+			:: {%AdversarialSimulation{}, list(Validator.msg()), list(Validator.msg())}
 	def slotHonestMsgs(config, t, validatorIds, msgsInAll, msgsOutPart1, msgsOutPart2) do
 		case validatorIds do
 			[] -> {config, msgsOutPart1, msgsOutPart2}
@@ -213,26 +213,26 @@ defmodule OverviewSimulation do
 		end
 	end
 
-	@spec getMissedMessages(%OverviewSimulation{}, non_neg_integer()) :: list(Validator.msg())
+	@spec getMissedMessages(%AdversarialSimulation{}, non_neg_integer()) :: list(Validator.msg())
 	def getMissedMessages(config, validatorId) do
 		Map.get(config.msgsMissed, validatorId, [])
 	end
 
-	@spec getInflightMessages(%OverviewSimulation{}, non_neg_integer()) :: %{validator() => list(Validator.msg())}
+	@spec getInflightMessages(%AdversarialSimulation{}, non_neg_integer()) :: %{validator() => list(Validator.msg())}
 	def getInflightMessages(config, t) do
 		Map.get(config.msgsInflight, t, Map.new(for v <- 0..(config.n-1) do {v, []} end))
 	end
 
 	# Put new value in msgsInflight[t]
-	@spec modifyInflightMessages(%OverviewSimulation{}, non_neg_integer(),
-		validator()) :: %OverviewSimulation{}
+	@spec modifyInflightMessages(%AdversarialSimulation{}, non_neg_integer(),
+		validator()) :: %AdversarialSimulation{}
 	def modifyInflightMessages(config, t, value) do
 		%{config | msgsInflight:  Map.put(config.msgsInflight, t, value)}
 	end
 
 	# Append newMessages for msgsInflight[t][validator]
-	@spec appendInflightMessagesValidator(%OverviewSimulation{}, non_neg_integer(),
-		non_neg_integer(), list(Validator.msg())) :: %OverviewSimulation{}
+	@spec appendInflightMessagesValidator(%AdversarialSimulation{}, non_neg_integer(),
+		non_neg_integer(), list(Validator.msg())) :: %AdversarialSimulation{}
 	def appendInflightMessagesValidator(config, t, validatorId, newMessages) do
 		tMessages = getInflightMessages(config, t)
 		validatorMessages = tMessages[validatorId] ++ newMessages
@@ -241,8 +241,8 @@ defmodule OverviewSimulation do
 	end
 
 	# Prepend newMessages for msgsInflight[t][validator]
-	@spec prependInflightMessagesValidator(%OverviewSimulation{}, non_neg_integer(),
-		non_neg_integer(), list(Validator.msg())) :: %OverviewSimulation{}
+	@spec prependInflightMessagesValidator(%AdversarialSimulation{}, non_neg_integer(),
+		non_neg_integer(), list(Validator.msg())) :: %AdversarialSimulation{}
 	def prependInflightMessagesValidator(config, t, validatorId, newMessages) do
 		tMessages = getInflightMessages(config, t)
 		validatorMessages = newMessages ++ tMessages[validatorId]
@@ -251,8 +251,8 @@ defmodule OverviewSimulation do
 	end
 
 	# Append msgs for all validators msgsInflight[t]
-	@spec appendInflightMessages(%OverviewSimulation{}, list(non_neg_integer()),
-		non_neg_integer(), list(Validator.msg())) :: %OverviewSimulation{}
+	@spec appendInflightMessages(%AdversarialSimulation{}, list(non_neg_integer()),
+		non_neg_integer(), list(Validator.msg())) :: %AdversarialSimulation{}
 	def appendInflightMessages(config, validatorIds, t, msgs) do
 		case validatorIds do
 			[] -> config
@@ -263,8 +263,8 @@ defmodule OverviewSimulation do
 	end
 
 	# Prepend msgs for all validators msgsInflight[t]
-	@spec prependInflightMessages(%OverviewSimulation{}, list(non_neg_integer()),
-		non_neg_integer(), list(Validator.msg())) :: %OverviewSimulation{}
+	@spec prependInflightMessages(%AdversarialSimulation{}, list(non_neg_integer()),
+		non_neg_integer(), list(Validator.msg())) :: %AdversarialSimulation{}
 	def prependInflightMessages(config, validatorIds, t, msgs) do
 		case validatorIds do
 			[] -> config
@@ -275,10 +275,10 @@ defmodule OverviewSimulation do
 	end
 
 	# Computes adversarial validator actions for this slot.
-	@spec slotAdversarialMessages(%OverviewSimulation{}, list(non_neg_integer()),
+	@spec slotAdversarialMessages(%AdversarialSimulation{}, list(non_neg_integer()),
 		non_neg_integer(), list(Validator.msg()), list(Validator.msg()),
 		list(Validator.msg()), list(Validator.msg()))
-			:: {%OverviewSimulation{}, list(Validator.msg()), list(Validator.msg())}
+			:: {%AdversarialSimulation{}, list(Validator.msg()), list(Validator.msg())}
 	def slotAdversarialMessages(config, validatorIds, t, msgsOutPrivateAdversarial,
 		msgsOutRushHonest, msgsHonest, msgsInAll) do
 			case validatorIds do
@@ -315,36 +315,46 @@ defmodule OverviewSimulation do
 			length(config.validatorsAsleep), l_Lda_adv]))
 	end
 
-	@spec runSimulation(%OverviewSimulation{}, non_neg_integer()) :: %OverviewSimulation{}
+	@spec runSimulation(%AdversarialSimulation{}, non_neg_integer()) :: %AdversarialSimulation{}
 	def runSimulation(config, t) do
 		cond do
 
 			t == config.tEnd+1 -> config
 			true ->
 
-				config = daTick(config)
+				# config = daTick(config)
 
-				config =
-					if rem(t, 15*config.second) == 0 do
-						case config.livenessPhaseStart do
-							nil ->
-								if length(config.validatorsAwake) >= 67 do
-									%{config | livenessPhaseStart: t}
-								else
-									config
-								end
-							_ ->
-								if length(config.validatorsAwake) < 67 or t == config.tEnd do
-									config = pushLivenessPhase(config,
-										{config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
-									%{config | livenessPhaseStart: nil}
-								else
-									config
-								end
-						end
+				# config =
+				# 	if rem(t, 15*config.second) == 0 do
+				# 		case config.livenessPhaseStart do
+				# 			nil ->
+				# 				if length(config.validatorsAwake) >= 67 do
+				# 					%{config | livenessPhaseStart: t}
+				# 				else
+				# 					config
+				# 				end
+				# 			_ ->
+				# 				if length(config.validatorsAwake) < 67 or t == config.tEnd do
+				# 					config = pushLivenessPhase(config,
+				# 						{config.livenessPhaseStart, (config.livenessPhaseStart+t)/2, t})
+				# 					%{config | livenessPhaseStart: nil}
+				# 				else
+				# 					config
+				# 				end
+				# 		end
+				# 	else
+				# 		config
+				# 	end
+
+				{validatorsAwake, validatorsAsleep} = 
+					if t == config.tPartStart do
+						{Enum.slice(config.validatorsHonest, 0, 25), Enum.slice(config.validatorsHonest, 25, config.n-config.f-25)}
 					else
-						config
+						{config.validatorsHonest, []}
 					end
+
+				config = %{config | validatorsAwake: validatorsAwake}
+				config = %{config | validatorsAsleep: validatorsAsleep}
 
 				msgsInAll = getInflightMessages(config, t)
 
