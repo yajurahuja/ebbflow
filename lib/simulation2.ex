@@ -350,7 +350,10 @@ defmodule AdversarialSimulation do
 					if t == config.tPartStart do
 						{Enum.slice(config.validatorsHonest, 0, 25), Enum.slice(config.validatorsHonest, 25, config.n-config.f-25)}
 					else
-						{config.validatorsHonest, []}
+						if t == config.tPartStop do
+							{config.validatorsHonest, []}
+						else
+							{config.validatorsAwake, config.validatorsHonest}
 					end
 
 				config = %{config | validatorsAwake: validatorsAwake}

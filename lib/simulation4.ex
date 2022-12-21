@@ -358,16 +358,26 @@ defmodule OverviewSimulation do
 						{t+config.delta, t+config.delta}
 					end
 
+				# config = modifyInflightMessages(config, tDeliverInter,
+				# 	getInflightMessages(config, tDeliverInter))
+				# config = modifyInflightMessages(config, tDeliverIntra,
+				# 	getInflightMessages(config, tDeliverIntra))
+
+				# config = appendInflightMessages(config, config.validatorsPart1, tDeliverInter, msgsOutPart2)
+				# config = appendInflightMessages(config, config.validatorsPart1, tDeliverIntra, msgsOutPart1)
+
+				# config = appendInflightMessages(config, config.validatorsPart2, tDeliverInter, msgsOutPart1)
+				# config = appendInflightMessages(config, config.validatorsPart2, tDeliverIntra, msgsOutPart2)
+
 				config = modifyInflightMessages(config, tDeliverInter,
-					getInflightMessages(config, tDeliverInter))
+					getInflightMessages(config, tDeliverInter) ++ msgsOutPart2)
 				config = modifyInflightMessages(config, tDeliverIntra,
-					getInflightMessages(config, tDeliverIntra))
+					getInflightMessages(config, tDeliverIntra) ++ msgsOutPart1)
 
-				config = appendInflightMessages(config, config.validatorsPart1, tDeliverInter, msgsOutPart2)
-				config = appendInflightMessages(config, config.validatorsPart1, tDeliverIntra, msgsOutPart1)
-
-				config = appendInflightMessages(config, config.validatorsPart2, tDeliverInter, msgsOutPart1)
-				config = appendInflightMessages(config, config.validatorsPart2, tDeliverIntra, msgsOutPart2)
+				config = modifyInflightMessages(config, tDeliverInter,
+					getInflightMessages(config, tDeliverInter) ++ msgsOutPart1)
+				config = modifyInflightMessages(config, tDeliverIntra,
+					getInflightMessages(config, tDeliverIntra) ++ msgsOutPart2)
 
 				msgsHonest = msgsOutPart1 ++ msgsOutPart2
 
@@ -377,6 +387,9 @@ defmodule OverviewSimulation do
 
 				config = prependInflightMessages(config, config.validatorsHonest,
 					t+1, msgsOutRushHonest)
+
+				config = modifyInflightMessages(config, tDeliverIntra,
+					msgsOutRushHonest ++ getInflightMessages(config, t+1))
 
 				config = appendInflightMessages(config, config.validatorsAdversarial,
 					t+1, msgsOutPrivateAdversarial)
