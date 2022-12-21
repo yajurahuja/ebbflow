@@ -12,7 +12,7 @@ defmodule AdversarialSimulation do
 
 		delta: 1,
 		tEnd: 3600,
-		tPartStart: 10*60,
+		tPartStart: 600,
 		tPartStop: 30*60,
 
 		#adversarial/honest validators
@@ -347,17 +347,15 @@ defmodule AdversarialSimulation do
 				# 	end
 
 				{validatorsAwake, validatorsAsleep} =
-					if t == config.tPartStart do
-						{Enum.slice(config.validatorsHonest, 0, 25), Enum.slice(config.validatorsHonest, 25, config.n-config.f-25)}
-					else
-						if t == config.tPartStop do
-							{config.validatorsHonest, []}
-						else
-							{config.validatorsAwake, config.validatorsAsleep}
+					cond do
+						t == config.tPartStart ->
+							{Enum.slice(config.validatorsHonest, 0, 25), Enum.slice(config.validatorsHonest, 25, config.n-config.f-25)}
+						t == config.tPartStop -> {config.validatorsHonest, []}
+						true -> {config.validatorsAwake, config.validatorsAsleep}
 					end
 
-				config = %{config | validatorsAwake: config.validatorsAwake}
-				config = %{config | validatorsAsleep: config.validatorsAsleep}
+				config = %{config | validatorsAwake: validatorsAwake}
+				config = %{config | validatorsAsleep: validatorsAsleep}
 
 				msgsInAll = getInflightMessages(config, t)
 
@@ -403,5 +401,4 @@ defmodule AdversarialSimulation do
 				runSimulation(config, t+1)
 		end
 	end
-end
 end
