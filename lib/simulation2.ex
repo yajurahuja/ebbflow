@@ -353,7 +353,7 @@ defmodule AdversarialSimulation do
 						if t == config.tPartStop do
 							{config.validatorsHonest, []}
 						else
-							{config.validatorsAwake, config.validatorsHonest}
+							{config.validatorsAwake, config.validatorsAsleep}
 					end
 
 				config = %{config | validatorsAwake: validatorsAwake}
